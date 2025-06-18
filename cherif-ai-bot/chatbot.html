@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Cherif AI</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #0d0d0d;
+      color: #e7e4d8;
+    }
+    .landing {
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+    }
+    .logo {
+      font-size: 3rem;
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
+    .tagline {
+      font-size: 1.2rem;
+      margin-bottom: 40px;
+    }
+    .start-btn {
+      padding: 12px 30px;
+      background-color: #1c1c1c;
+      border: none;
+      border-radius: 12px;
+      color: #e7e4d8;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+    .chat {
+      display: none;
+      flex-direction: column;
+      height: 100vh;
+    }
+    .messages {
+      flex: 1;
+      padding: 20px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .input-area {
+      display: flex;
+      padding: 10px;
+      border-top: 1px solid #222;
+      background-color: #111;
+    }
+    input {
+      flex: 1;
+      padding: 12px;
+      border-radius: 8px;
+      border: none;
+      background-color: #1c1c1c;
+      color: #e7e4d8;
+      font-size: 1rem;
+    }
+    button.send {
+      margin-left: 10px;
+      background: #222;
+      border: none;
+      border-radius: 8px;
+      padding: 12px 20px;
+      color: #e7e4d8;
+      cursor: pointer;
+    }
+    .bubble {
+      background: #1e1e1e;
+      padding: 12px 16px;
+      border-radius: 12px;
+      max-width: 75%;
+    }
+    .user { align-self: flex-end; background: #333; }
+    .bot { align-self: flex-start; background: #1e1e1e; }
+  </style>
+</head>
+<body>
+  <div class="landing" id="landing">
+    <div class="logo">Cherif AI</div>
+    <div class="tagline">Your AI real estate mentor</div>
+    <button class="start-btn" onclick="startChat()">Start Chatting</button>
+  </div>
+
+  <div class="chat" id="chatUI">
+    <div class="messages" id="messages"></div>
+    <div class="input-area">
+      <input id="q" placeholder="Ask Cherif..." />
+      <button class="send" onclick="ask()">Send</button>
+    </div>
+  </div>
+
+  <script>
+    function startChat() {
+      document.getElementById("landing").style.display = "none";
+      document.getElementById("chatUI").style.display = "flex";
+    }
+
+    async function ask() {
+      const q = document.getElementById("q").value;
+      if (!q) return;
+
+      appendMessage("user", q);
+      document.getElementById("q").value = "";
+
+      const res = await fetch("/ask", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: q })
+      });
+
+      const data = await res.json();
+      appendMessage("bot", data.answer);
+    }
+
+    function appendMessage(sender, text) {
+      const msg = document.createElement("div");
+      msg.className = `bubble ${sender}`;
+      msg.innerText = text;
+      document.getElementById("messages").appendChild(msg);
+      document.getElementById("messages").scrollTop = 999999;
+    }
+  </script>
+</body>
+</html>
