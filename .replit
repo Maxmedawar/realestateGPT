@@ -1,10 +1,11 @@
 run = ["uvicorn", "main:app", "--host", "0.0.0.0", "--reload"]
-modules = ["python-3.11"]
+modules = ["nodejs-20", "python-3.11"]
 
 hidden = [".pythonlibs"]
 
 [nix]
 channel = "stable-24_05"
+packages = ["lsof", "run"]
 
 [deployment]
 run = ["uvicorn", "main:app", "--host", "0.0.0.0"]
@@ -13,7 +14,25 @@ deploymentTarget = "cloudrun"
 [[ports]]
 localPort = 3000
 externalPort = 3000
+exposeLocalhost = true
 
 [[ports]]
 localPort = 8000
 externalPort = 80
+exposeLocalhost = true
+
+[workflows]
+runButton = "Start Cherif AI Bot"
+
+[[workflows.workflow]]
+name = "Start Cherif AI Bot"
+author = 37210595
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd cherif-ai-bot"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
