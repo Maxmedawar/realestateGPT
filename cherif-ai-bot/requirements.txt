@@ -1,4 +1,7 @@
+openai>=1.0.0
 fastapi
 uvicorn
-openai
 python-dotenv
+requests
+aiohttp
+websockets

@@ -1,0 +1,3 @@
+cd cherif-ai-bot
+
+uvicorn main:app --reload --port 3000
