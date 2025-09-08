@@ -448,13 +448,15 @@
     const db   = firebase.firestore();
 
     // FastAPI base (main.py). If served same origin, leave blank.
-    const API_BASE = '';
+    const API_BASE = "/api";
 
     // Stripe publishable key (legacy constant — retained to avoid breaking anything)
     const STRIPE_PUBLISHABLE_KEY = 'pk_live_xxx_REPLACE_ME';
 
     const STREAM_TIMEOUT_MS = 60_000;
 
+
+    const API_BASE = ""; // same-origin (Vercel API lives under /api)
     // FirebaseUI instance (lazy)
     let ui = null;
     let postLoginAction = null;
