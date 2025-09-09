@@ -454,9 +454,6 @@
     const STRIPE_PUBLISHABLE_KEY = 'pk_live_xxx_REPLACE_ME';
 
     const STREAM_TIMEOUT_MS = 60_000;
-
-
-    const API_BASE = ""; // same-origin (Vercel API lives under /api)
     // FirebaseUI instance (lazy)
     let ui = null;
     let postLoginAction = null;
@@ -466,7 +463,7 @@
       const u = auth.currentUser;
       if(!u){ return; }
 
-      const res = await fetch('/billing/status', {
+      const res = await fetch(`\${API_BASE}/billing/status`, {
         method:'POST',
         headers: {
           'Content-Type':'application/json',
@@ -699,7 +696,7 @@ let activePiClientSecret = null;  // for subscribe flow
 async function ensureStripe() {
   if (stripe) return stripe;
   try {
-    const r = await fetch('/billing/config');
+    const r = await fetch(`\${API_BASE}/billing/config`);
     if (r.ok) {
       const cfg = await r.json();
       stripePK = cfg.publishable_key;
@@ -738,7 +735,7 @@ async function showAddOrUpdateCard(){
   if(!u){ openLoginModal('Login required'); return; }
   await ensureStripe();
 
-  const r = await fetch('/billing/create-setup-intent', {
+  const r = await fetch(`\${API_BASE}/billing/create-setup-intent`, {
     method:'POST',
     headers:{
       'Content-Type':'application/json',
@@ -802,7 +799,7 @@ async function startOrConfirmSubscription(){
   }
 
   // First click: ask server to create/update subscription
-  const r = await fetch('/billing/subscribe', {
+  const r = await fetch(`\${API_BASE}/billing/subscribe`, {
     method:'POST',
     headers:{
       'Content-Type':'application/json',
@@ -837,7 +834,7 @@ function closeCancelConfirm(){ document.getElementById('cancelConfirmModal').sty
 async function cancelSubscription(){
   const u = auth.currentUser;
   if(!u){ closeCancelConfirm(); openLoginModal('Login required'); return; }
-  const res = await fetch('/billing/cancel', {
+  const res = await fetch(`\${API_BASE}/billing/cancel`, {
     method:'POST',
     headers:{
       'Content-Type':'application/json',
