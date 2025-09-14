@@ -2,3 +2,4 @@
 # secrets
 .env
 firebase-admin.json
+.vercel

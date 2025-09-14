@@ -4,13 +4,13 @@ import { getAuth, onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signO
 
 // Firebase config
 const firebaseConfig = {
-  apiKey: "AIzaSyALYzHcHMFYCCbF2eqinV7Xlf0GJCdin4U",
-  authDomain: "realestategpt-ai.firebaseapp.com",
+  apiKey: "AIzaSyALyzHcHMfYCCbF2eqinV7XlfOGJCDin4U",
+ authDomain: "realestategpt-ai.firebaseapp.com",
   projectId: "realestategpt-ai",
   storageBucket: "realestategpt-ai.appspot.com",
   messagingSenderId: "822449246072",
-  appId: "1:822449246072:web:82c572361d8455fd52c28d",
-  measurementId: "G-W3E8BQZYKL"
+  appId: "1:822449246072:web:82c572361d845f5d52c28d",
+  measurementId: "G-W3BQEZKYZL"
 };
 
 // Init Firebase

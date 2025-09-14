@@ -1,0 +1,1064 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Real Estate GPT</title>
+
+  <!-- Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+
+  <!-- Firebase core + Auth (compat) -->
+  <script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-auth-compat.js"></script>
+  <!-- Firestore (compat) -->
+  <script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-firestore-compat.js"></script>
+
+  <!-- FirebaseUI (Auth UI) -->
+  <link rel="stylesheet" href="https://www.gstatic.com/firebasejs/ui/6.0.2/firebase-ui-auth.css"/>
+  <script src="https://www.gstatic.com/firebasejs/ui/6.0.2/firebase-ui-auth.js"></script>
+
+  <!-- Stripe Buy Button (once only) -->
+  <script async src="https://js.stripe.com/v3/buy-button.js"></script>
+
+  <style>
+    :root{
+      --bg:#0d0d0d; --panel:#121212; --panel2:#1a1a1a;
+      --text:#e7e4d8; --muted:#999; --brand:#70d6ff; --line:#222;
+      --bubble:#1e1e1e; --bubbleUser:#333; --accent:#2a2a2a;
+      --sidebar-w:250px;
+      --dot: 14px;
+      --bubble-max: 75vw;
+      --md-code:#0f0f0f;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+      background:var(--bg); color:var(--text); display:flex; flex-direction:column; overflow:hidden;
+    }
+
+    /* Top bar */
+    .topbar{
+      height:50px; padding:0 12px; display:flex; align-items:center; gap:10px;
+      justify-content:space-between; background:var(--panel2); border-bottom:1px solid var(--line);
+      position:relative; z-index:3;
+    }
+    .left,.right{display:flex; align-items:center; gap:10px}
+    .title{font-weight:700; letter-spacing:.2px; cursor:pointer}
+    .medawar{color:#888; font-size:.9rem}
+    .badge{padding:6px 10px; border:1px solid #333; border-radius:999px; background:#101010; font-size:.85rem}
+    .counter{opacity:.9}
+    .link{color:var(--brand); cursor:pointer; font-size:.95rem}
+    .tog{cursor:pointer; opacity:.9}
+
+    .container{flex:1; display:flex}
+    .main-content{flex:1; display:flex; flex-direction:column; max-width:100vw; transition: margin-right .2s ease}
+
+    /* When sidebar is open, shift main content so nothing hides underneath on desktop */
+    @media (min-width: 900px){
+      body.sidebar-open .main-content{ margin-right: var(--sidebar-w); }
+    }
+
+    .landing{
+      flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;
+    }
+    .logo{font-size:3rem; margin:6px 0 2px}
+    .tagline{font-size:1.05rem; color:#bbb; margin-bottom:24px}
+    .start-btn{
+      padding:12px 26px; border-radius:12px; border:none; background:#1c1c1c; color:var(--text);
+      font-size:1rem; cursor:pointer;
+    }
+    .external-links{margin-top:26px; display:flex; gap:16px}
+    .external-links a{padding:8px 14px; background:#111; border-radius:8px; color:#var(--brand); text-decoration:none}
+
+    /* Right history panel */
+    .side-panel{
+      position:fixed; right:0; top:50px; height:calc(100% - 50px); width:var(--sidebar-w);
+      background:var(--panel); border-left:1px solid var(--line); padding:12px;
+      display:none; flex-direction:column; gap:10px; z-index:2
+    }
+    .side-panel h4{margin:4px 0 6px}
+    .side-panel ul{list-style:none; margin:0; padding:0}
+    .side-panel li{
+      padding:7px 0; border-bottom:1px solid #2a2a2a; cursor:pointer; color:#ddd; display:flex;
+      justify-content:space-between; align-items:center; position:relative;
+    }
+    .chat-options-btn{opacity:0; transition:opacity .15s}
+    .chat-item:hover .chat-options-btn{opacity:1}
+    .chat-options-menu{display:none; position:absolute; right:6px; top:22px; background:#1a1a1a; border:1px solid #333; border-radius:6px; padding:5px 0; z-index:10}
+    .chat-options-menu.show{display:block}
+    .chat-options-menu div{padding:6px 12px; cursor:pointer; font-size:.85rem}
+    .chat-options-menu div:hover{background:#333}
+    .plans{
+      margin-top:auto; text-align:center; padding:10px; font-size:.95rem; color:var(--brand);
+      background:var(--panel2); border-radius:6px; cursor:pointer; border:1px solid #222;
+    }
+
+    /* Chat area */
+    .chat{
+      flex:1; display:none; flex-direction:column;
+      background:var(--bg) url('https://www.transparenttextures.com/patterns/cubes.png');
+    }
+    .messages{
+      flex:1; overflow-y:auto; padding:18px; display:flex; flex-direction:column; gap:14px;
+      max-height:calc(100vh - 150px)
+    }
+
+    /* Message bubbles */
+    .bubble{
+      display:inline-block;
+      max-width: min(760px, var(--bubble-max));
+      padding:12px 14px; border-radius:12px; background:var(--bubble);
+      white-space: pre-wrap; line-height:1.45;
+      width:max-content;  /* shrink-to-fit content as it grows */
+      word-wrap:break-word; overflow-wrap:anywhere; word-break:break-word;
+      transition: width .12s ease, min-width .12s ease, padding .12s ease;
+    }
+    .bubble.user{align-self:flex-end; background:var(--bubbleUser); position:relative}
+    .bubble .edit-btn{position:absolute; top:4px; right:6px; font-size:.7rem; opacity:.55; cursor:pointer}
+
+    /* Streaming placeholder bubble: starts tiny at dot size only, grows with text */
+    .bubble.streaming{
+      padding:8px 10px;
+      min-width: var(--dot);
+      min-height: var(--dot);
+      display:inline-flex; align-items:center; gap:8px;
+    }
+    .bubble.streaming.empty{
+      padding:6px;
+      min-width: var(--dot);
+      min-height: var(--dot);
+    }
+
+    /* Markdown inside bot bubbles */
+    .bubble.bot h1,.bubble.bot h2,.bubble.bot h3{margin:.2rem 0 .3rem; line-height:1.2}
+    .bubble.bot p{margin:.25rem 0}
+    .bubble.bot ul{margin:.25rem 0 .25rem 1.2rem}
+    .bubble.bot li{margin:.15rem 0}
+    .bubble.bot code{
+      background:var(--md-code); border:1px solid #222; border-radius:6px; padding:2px 5px; font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:.95em
+    }
+    .bubble.bot pre{
+      background:var(--md-code); padding:10px; border-radius:8px; border:1px solid #222; overflow:auto
+    }
+    .bubble.bot pre code{background:transparent; border:none; padding:0}
+
+    .input-area{
+      display:flex; align-items:center; gap:10px; padding:10px; border-top:1px solid var(--line); background:var(--panel2);
+      position:relative; z-index:1;
+    }
+    .input-area input[type="text"]{flex:1; padding:12px; border-radius:8px; border:none; background:var(--accent); color:var(--text); font-size:1rem}
+    .input-area button{padding:12px 18px; border:none; border-radius:8px; background:#333; color:var(--text); cursor:pointer}
+    .input-area button:disabled{opacity:.5; cursor:not-allowed}
+    .input-area .icon-btn{
+      width:44px; height:44px; display:inline-flex; align-items:center; justify-content:center;
+      border-radius:10px; background:#252525; border:1px solid #333;
+    }
+    .input-area input[type="file"]{ display:none }
+
+    #scrollDownBtn{
+      position:fixed; bottom:70px; left:50%; transform:translateX(-50%);
+      background:var(--brand); color:#000; border:none; border-radius:50%;
+      padding:12px 16px; font-size:1.2rem; display:none; z-index:5; cursor:pointer;
+    }
+
+    /* Modal base */
+    .modal{
+      display:none; position:fixed; inset:0; z-index:20;
+      background:rgba(0,0,0,.7); align-items:center; justify-content:center;
+    }
+    .modal .card{
+      background:#111; color:var(--text); border:1px solid #222; border-radius:10px;
+      width:min(92vw, 560px); padding:22px; position:relative;
+    }
+    .modal .close-x{position:absolute; right:10px; top:8px; cursor:pointer; opacity:.8}
+
+    /* Login modal */
+    #loginModal .card{width:min(92vw, 480px)}
+    .firebaseui-container, .firebaseui-card-content, .firebaseui-card-actions{font-size:1rem}
+    .firebaseui-container{padding:6px 10px}
+    .firebaseui-card{background:#131313; border:1px solid #2a2a2a}
+    .firebaseui-title{color:#fff}
+    .firebaseui-link{color:var(--brand)}
+    .firebaseui-idp-button{display:flex !important; align-items:center !important; gap:10px !important; padding:12px !important}
+    .firebaseui-idp-icon-wrapper, .firebaseui-idp-icon{width:22px !important; height:22px !important; background-size:contain !important}
+
+    /* Plans modal (narrow) */
+    #plansPopup .card{ width:min(92vw,360px) }
+    .plans-grid{ display:grid; grid-template-columns:1fr; gap:16px; margin-top:10px }
+    .plan{ border:1px solid #2a2a2a; border-radius:10px; padding:14px; background:#131313 }
+    .plan .price{ font-size:1.1rem; color:#ddd; margin:6px 0 12px }
+    .plan .btn{ display:inline-block; padding:10px 14px; background:#222; color:#fff; border-radius:8px; text-decoration:none }
+
+    /* Logout confirm modal */
+    #logoutConfirmModal .card{ width:min(92vw,420px) }
+
+    /* Account modal */
+    #accountModal .avatar{
+      width:48px; height:48px; border-radius:50%; background:#2a2a2a; display:inline-flex; align-items:center; justify-content:center; font-weight:700
+    }
+    #accountModal .row{display:flex; align-items:center; gap:14px}
+    #accountModal .plan-chip{padding:6px 10px; background:#1a1a1a; border:1px solid #333; border-radius:999px}
+    #accountModal .badge-bar{display:flex; gap:10px; flex-wrap:wrap}
+
+    /* Toast */
+    .toast{
+      position:fixed; left:50%; transform:translateX(-50%);
+      bottom:20px; background:#222; color:#fff; padding:10px 14px; border-radius:8px; border:1px solid #333;
+      z-index:30; display:none
+    }
+
+    /* Tiny pulse for streaming dot */
+    .pulsing-dot{display:inline-block; width:var(--dot); height:var(--dot); border-radius:50%; background:#70d6ff; opacity:.85; animation:pulse-dot 1s infinite ease-in-out}
+    @keyframes pulse-dot{0%{transform:scale(1);opacity:.6}50%{transform:scale(1.25);opacity:1}100%{transform:scale(1);opacity:.65}}
+
+    /* Mobile behavior: keep history drawer hidden by default; overlay style when open */
+    @media (max-width: 899px){
+      .side-panel{
+        width: min(94vw, 420px);
+        left:auto; right:0;
+        box-shadow: -10px 0 30px rgba(0,0,0,.5);
+      }
+      .side-panel.show{ display:flex }
+      /* Do NOT push main content on mobile */
+      body.sidebar-open .main-content{ margin-right: 0 }
+    }
+
+    :focus:not(:focus-visible){outline:none}
+  </style>
+</head>
+<body>
+  <!-- Topbar -->
+  <div class="topbar">
+    <div class="left">
+      <div class="title" onclick="goHome()">Real Estate GPT</div>
+      <div class="medawar">Medawar</div>
+    </div>
+    <div class="right">
+      <span id="planBadge" class="badge">Current plan: <b>NONE</b></span>
+      <span id="counter" class="badge counter">3/3</span>
+      <span id="loginBtn" class="link" onclick="loginOrLogout()">Login</span>
+      <span class="tog" onclick="toggleSidebar()" title="History">☰</span>
+      <span class="tog" onclick="openAccount()" title="Account"><i class="fa-regular fa-user"></i></span>
+    </div>
+  </div>
+
+  <div class="container">
+    <!-- Right history panel -->
+    <div class="side-panel" id="chatHistory">
+      <div>
+        <h4 style="display:flex;justify-content:space-between;align-items:center; margin-top:0;">
+          Previous Chats <span class="tog" onclick="toggleSidebar()">✖</span>
+        </h4>
+        <ul id="historyList">
+          <li onclick="newChat()">+ New Chat</li>
+        </ul>
+      </div>
+      <div class="plans" onclick="openPlansPopup()">View Plans</div>
+    </div>
+
+    <!-- Main column -->
+    <div class="main-content">
+      <!-- Landing -->
+      <div class="landing" id="landing">
+        <div class="logo">Real Estate GPT</div>
+        <div class="tagline">POWERED BY THE BRAIN OF CHERIF MEDAWAR</div>
+        <button class="start-btn" onclick="startChat()">Start Chatting</button>
+        <div class="external-links">
+          <a href="https://www.cherifmedawar.com/about-us/" target="_blank">About Cherif</a>
+          <a href="https://cmrei.com" target="_blank">Visit CMREI</a>
+          <a href="https://form.jotform.com/222204088428049" target="_blank">CRE Test</a>
+        </div>
+      </div>
+
+      <!-- Chat UI -->
+      <div class="chat" id="chatUI">
+        <div class="messages" id="messages"></div>
+        <button id="scrollDownBtn">↓</button>
+        <div class="input-area">
+          <label class="icon-btn" title="Attach files">
+            <input id="fileInput" type="file" multiple accept=".pdf,.doc,.docx,.txt,.csv,.xlsx,.xls,image/*,application/*" />
+            <i class="fa-solid fa-paperclip"></i>
+          </label>
+          <input id="q" type="text" placeholder="Ask Cherif..." onkeydown="if(event.key==='Enter'){ask()}"/>
+          <button class="send" id="sendBtn" onclick="ask()">Send</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Login Modal -->
+  <div id="loginModal" class="modal" aria-hidden="true">
+    <div class="card">
+      <span class="close-x" onclick="closeLogin()">×</span>
+      <h3 id="loginTitle" style="margin:6px 0 10px">Sign In</h3>
+      <div id="firebaseui-auth-container"></div>
+      <div id="firebaseui-auth-spinner" style="display:none">Loading…</div>
+    </div>
+  </div>
+
+  <!-- Plans Modal -->
+  <div id="plansPopup" class="modal" aria-hidden="true">
+    <div class="card">
+      <span class="close-x" onclick="closePlansPopup()">×</span>
+      <h2 style="margin:8px 0 10px">Choose Your Plan</h2>
+
+      <div class="plans-grid">
+        <div class="plan">
+          <div style="display:flex;align-items:center;gap:8px">
+            <strong>Pro</strong>
+            <span style="font-size:.9rem;opacity:.8">Unlimited Q&A</span>
+          </div>
+          <div class="price">$17.99 / month</div>
+
+          <stripe-buy-button
+            buy-button-id="buy_btn_1S0cwfBIDiLt4lkLx68YuTyl"
+            publishable-key="pk_live_51RmsrWBIDiLt4lkLiZi6TpXOsdugX3Spiz8GTPt2vc7xhLyK52vbE73cwBVE0wvDX8t3DGnBUduyRodHahoBP5h6003VxUtT3f">
+          </stripe-buy-button>
+
+          <div style="margin-top:10px; font-size:.9rem; color:#bbb; text-align:center;">
+            After checkout, your plan will update automatically on your next refresh.
+          </div>
+        </div>
+      </div>
+
+      <div style="text-align:center; margin-top:16px">
+        <div class="link" onclick="closePlansPopup()">Close</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Account Modal -->
+  <div id="accountModal" class="modal" aria-hidden="true">
+    <div class="card">
+      <span class="close-x" onclick="closeAccount()">×</span>
+      <h3 style="margin:6px 0 12px">Account</h3>
+      <div class="row">
+        <div id="acctAvatar" class="avatar">U</div>
+        <div style="display:flex; flex-direction:column; gap:4px">
+          <div id="acctName" style="font-weight:700">—</div>
+          <div id="acctEmail" style="color:#bbb; font-size:.95rem">—</div>
+        </div>
+      </div>
+
+      <div class="badge-bar" style="margin:14px 0 6px">
+        <span id="acctPlan" class="plan-chip">Plan: NONE</span>
+        <span id="acctCredits" class="plan-chip">Credits: 3/3</span>
+      </div>
+
+      <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap">
+        <button class="app-btn" style="padding:10px 14px; border:none; border-radius:8px; background:#333; color:#eee; cursor:pointer" onclick="openPlansPopup()">Manage Plan</button>
+        <button class="app-btn" style="padding:10px 14px; border:none; border-radius:8px; background:#70d6ff; color:#000; cursor:pointer" onclick="confirmLogout()">Log out</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Logout Confirm Modal -->
+  <div id="logoutConfirmModal" class="modal" aria-hidden="true">
+    <div class="card">
+      <h3 style="margin:0 0 8px;">Log out?</h3>
+      <p style="margin:0 0 14px;">Are you sure you want to log out? Local cache stays on this device but cloud history remains in your account.</p>
+      <div style="display:flex; gap:10px;">
+        <button class="app-btn" style="padding:10px 14px; border:none; border-radius:8px; background:#70d6ff; color:#000; cursor:pointer" onclick="doLogout()">Yes, log out</button>
+        <button class="app-btn" style="padding:10px 14px; border:none; border-radius:8px; background:#333; color:#eee; cursor:pointer" onclick="closeLogoutConfirm()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast"></div>
+
+  <script>
+    /***********************
+     * Firebase setup
+     ***********************/
+    const firebaseConfig = {
+      apiKey: "AIzaSyALyzHcHMfYCCbF2eqinV7XlfOGJCDin4U",
+      authDomain: "realestategpt-ai.firebaseapp.com",
+      projectId: "realestategpt-ai",
+      storageBucket: "realestategpt-ai.firebasestorage.app",
+      messagingSenderId: "822449246072",
+      appId: "1:822449246072:web:82c572361d8455fd52c28d",
+      measurementId: "G-W3E8Q2YKZL"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db   = firebase.firestore();
+
+    // FastAPI base (main.py). If served same origin, leave blank.
+    const API_BASE = '';
+
+    // Feature flags
+    const STREAM_TIMEOUT_MS = 60_000;
+
+    // FirebaseUI instance (lazy)
+    let ui = null;
+    let postLoginAction = null;
+
+    /***********************
+     * UI helpers
+     ***********************/
+    function toast(msg, ms=2200){
+      const t = document.getElementById('toast');
+      t.textContent = msg; t.style.display='block';
+      setTimeout(()=>{t.style.display='none'}, ms);
+    }
+
+    function getWeekResetISO(){
+      const now = new Date();
+      const reset = new Date(now);
+      reset.setDate(now.getDate()+7);
+      return reset.toISOString();
+    }
+
+    /***********************
+     * Plan/Credits local
+     ***********************/
+    function planKey(uid){return `plan:${uid}`}
+    function creditsKey(uid){return `credits:${uid}`}
+    function resetKey(uid){return `creditsResetAt:${uid}`}
+    function ensureUserState(uid){
+      if(!localStorage.getItem(planKey(uid))) localStorage.setItem(planKey(uid),'NONE');
+      if(!localStorage.getItem(creditsKey(uid))) localStorage.setItem(creditsKey(uid),'3');
+      let resetAt = localStorage.getItem(resetKey(uid));
+      if(!resetAt){ localStorage.setItem(resetKey(uid), getWeekResetISO()); }
+      else{
+        const now = new Date();
+        if(now > new Date(resetAt)){
+          localStorage.setItem(creditsKey(uid),'3');
+          localStorage.setItem(resetKey(uid), getWeekResetISO());
+        }
+      }
+    }
+
+    function updateTopBar(){
+      const badge = document.getElementById('planBadge');
+      const counter = document.getElementById('counter');
+      const btn = document.getElementById('loginBtn');
+
+      const user = auth.currentUser;
+      if(!user){
+        badge.innerHTML = 'Current plan: <b>NONE</b>';
+        counter.textContent = '3/3';
+        btn.textContent = 'Login';
+        return;
+      }
+      ensureUserState(user.uid);
+      const plan = localStorage.getItem(planKey(user.uid)) || 'NONE';
+      const credits = parseInt(localStorage.getItem(creditsKey(user.uid) ) || '3', 10);
+
+      badge.innerHTML = `Current plan: <b>${plan}</b>`;
+      counter.textContent = plan==='NONE' ? `${credits}/3` : '∞';
+      btn.textContent = 'Logout';
+    }
+    window.updateTopBar = updateTopBar;
+
+    /***********************
+     * Account modal
+     ***********************/
+    function openAccount(){
+      const m = document.getElementById('accountModal');
+      const u = auth.currentUser;
+      const name = u?.displayName || 'User';
+      const email = u?.email || '—';
+      const plan = u ? (localStorage.getItem(planKey(u.uid)) || 'NONE') : 'NONE';
+      const credits = u ? (localStorage.getItem(creditsKey(u.uid)) || '3') : '3';
+
+      document.getElementById('acctAvatar').textContent = (name||'U').slice(0,1).toUpperCase();
+      document.getElementById('acctName').textContent   = name;
+      document.getElementById('acctEmail').textContent  = email;
+      document.getElementById('acctPlan').textContent   = `Plan: ${plan}`;
+      document.getElementById('acctCredits').textContent= `Credits: ${plan==='NONE'? `${credits}/3` : '∞'}`;
+
+      m.style.display = 'flex';
+    }
+    function closeAccount(){ document.getElementById('accountModal').style.display='none' }
+
+    /***********************
+     * Chat state
+     ***********************/
+    let savedChats = [];              // [{id,title,html,updatedAt}]
+    let currentChatTitle = null;
+    const LOCAL_CACHE_KEY = "regpt_local_chats_v1";
+    function cacheChatsLocally(){
+      try{ localStorage.setItem(LOCAL_CACHE_KEY, JSON.stringify(savedChats)); }catch{}
+    }
+    function loadLocalCache(){
+      try{
+        const raw = localStorage.getItem(LOCAL_CACHE_KEY);
+        if(raw) savedChats = JSON.parse(raw);
+      }catch{ savedChats = []; }
+    }
+    loadLocalCache();
+
+    // Firestore: load / save / delete
+    async function loadChatsForUser(uid){
+      savedChats = [];
+      try{
+        const col = await db.collection("users").doc(uid).collection("chats")
+          .orderBy("updatedAt","desc").get();
+        col.forEach(doc=>{
+          const d = doc.data();
+          savedChats.push({
+            id: doc.id, title: d.title, html: d.html || "",
+            updatedAt: d.updatedAt?.toMillis ? d.updatedAt.toMillis() : Date.now()
+          });
+        });
+        cacheChatsLocally();
+      }catch(e){
+        console.warn("loadChatsForUser failed:", e);
+        loadLocalCache();
+      }
+    }
+    async function persistChatToCloud(chat){
+      cacheChatsLocally();
+      if(!auth.currentUser) return;
+      try{
+        const uid = auth.currentUser.uid;
+        const id = chat.id || db.collection("_ids").doc().id;
+        chat.id = id;
+        await db.collection("users").doc(uid).collection("chats").doc(id)
+          .set({
+            title: chat.title,
+            html: chat.html || "",
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+          }, { merge:true });
+      }catch(e){ console.warn("persistChatToCloud failed:", e); }
+    }
+    async function deleteChatCloud(chat){
+      if(!auth.currentUser || !chat.id) return;
+      try{
+        await db.collection("users").doc(auth.currentUser.uid)
+          .collection("chats").doc(chat.id).delete();
+      }catch(e){ console.warn("deleteChatCloud", e); }
+    }
+
+    /***********************
+     * Auth watches
+     ***********************/
+    auth.onAuthStateChanged(async (user)=>{
+      updateTopBar();
+
+      // Attach UID/email to Stripe buttons
+      const btns = document.querySelectorAll('stripe-buy-button');
+      if (user) {
+        btns.forEach(btn => {
+          btn.setAttribute('client-reference-id', user.uid);
+          if (user.email) btn.setAttribute('customer-email', user.email);
+        });
+      }
+
+      if(user){
+        await loadChatsForUser(user.uid);
+        updateChatList();
+        if (savedChats.length > 0) {
+          loadChat(savedChats[0].title);
+        }
+        if(postLoginAction){ const fn = postLoginAction; postLoginAction=null; fn(); }
+
+        // Live plan sync -> top bar
+        db.collection('users').doc(user.uid).onSnapshot(snap => {
+          const plan = snap.data()?.plan || 'NONE';
+          localStorage.setItem(planKey(user.uid), plan);
+          if (plan !== 'NONE') localStorage.setItem(creditsKey(user.uid), '9999');
+          updateTopBar();
+        });
+      }else{
+        // Hide history on mobile after logout
+        document.getElementById("chatHistory").classList.remove('show');
+        document.getElementById("chatHistory").style.display='none';
+        hardResetUI(false); // keep local cache visible while logged out
+      }
+    });
+
+    /***********************
+     * Login / Logout UX
+     ***********************/
+    function openLoginModal(title='Sign In'){
+      document.getElementById('loginTitle').textContent = title;
+      document.getElementById('loginModal').style.display = 'flex';
+      if(!ui){ ui = new firebaseui.auth.AuthUI(auth); }
+      auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(()=>{});
+      ui.start('#firebaseui-auth-container',{
+        signInFlow:'popup',
+        signInOptions:[ firebase.auth.GoogleAuthProvider.PROVIDER_ID ],
+        callbacks:{
+          signInSuccessWithAuthResult:()=>{
+            closeLogin();
+            return false;
+          }
+        }
+      });
+    }
+    function closeLogin(){
+      document.getElementById('loginModal').style.display = 'none';
+      if(ui) ui.reset();
+    }
+    function loginOrLogout(){
+      const user = auth.currentUser;
+      if(user){ openAccount(); }
+      else{ openLoginModal('Login'); }
+    }
+    function ensureSignedInThen(fn){
+      if(auth.currentUser){ fn(); return; }
+      postLoginAction = fn;
+      openLoginModal('Login required');
+    }
+    function openPlansPopup(){
+      ensureSignedInThen(()=>{ document.getElementById('plansPopup').style.display='flex'; });
+    }
+    function closePlansPopup(){ document.getElementById('plansPopup').style.display='none' }
+    function confirmLogout(){ document.getElementById("logoutConfirmModal").style.display="flex" }
+    function closeLogoutConfirm(){ document.getElementById("logoutConfirmModal").style.display="none" }
+    async function doLogout(){
+      closeLogoutConfirm(); closeAccount();
+      try{ await auth.signOut(); }catch{}
+      toast('Logged out.');
+    }
+    function hardResetUI(clearLocal=true){
+      if(clearLocal){
+        savedChats = []; currentChatTitle=null;
+        try{ localStorage.removeItem(LOCAL_CACHE_KEY); }catch{}
+      }
+      const msg = document.getElementById("messages");
+      if(msg) msg.innerHTML="";
+      document.getElementById("chatUI").style.display="none";
+      document.getElementById("landing").style.display="flex";
+      document.getElementById("chatHistory").style.display="none";
+      document.body.classList.remove('sidebar-open');
+      updateTopBar();
+      updateChatList();
+    }
+
+    /***********************
+     * Layout + history
+     ***********************/
+    function goHome(){
+      document.getElementById("chatUI").style.display = "none";
+      document.getElementById("landing").style.display = "flex";
+      document.getElementById("chatHistory").style.display = "none";
+      document.getElementById("chatHistory").classList.remove('show');
+      document.body.classList.remove('sidebar-open');
+    }
+    function startChat(){
+      document.getElementById("landing").style.display = "none";
+      document.getElementById("chatUI").style.display = "flex";
+      // On desktop show drawer; on mobile keep hidden until toggled
+      if (window.innerWidth >= 900){
+        document.getElementById("chatHistory").style.display = "flex";
+        document.body.classList.add('sidebar-open');
+      }
+    }
+    function toggleSidebar(){
+      const sidebar = document.getElementById("chatHistory");
+      const isVisible = window.getComputedStyle(sidebar).display !== "none";
+      if (window.innerWidth < 900){
+        // Mobile overlay behavior
+        if(isVisible){
+          sidebar.classList.remove('show');
+          sidebar.style.display='none';
+        }else{
+          sidebar.style.display='flex';
+          sidebar.classList.add('show');
+        }
+        document.body.classList.toggle('sidebar-open', false);
+      }else{
+        sidebar.style.display = isVisible ? "none" : "flex";
+        document.body.classList.toggle('sidebar-open', !isVisible);
+      }
+    }
+
+    async function saveCurrentChat(title){
+      const chatHTML = document.getElementById("messages").innerHTML;
+      let chat = savedChats.find(c=>c.title===title);
+      if(chat){
+        chat.html = chatHTML;
+        chat.updatedAt = Date.now();
+      }else{
+        chat = { id:null, title, html:chatHTML, updatedAt:Date.now() };
+        savedChats.unshift(chat);
+      }
+      updateChatList();
+      await persistChatToCloud(chat);
+    }
+    function updateChatList(){
+      const ul = document.getElementById('historyList');
+      Array.from(ul.children).slice(1).forEach(el=>ul.removeChild(el));
+      savedChats.forEach(c=>{
+        const li = document.createElement('li'); li.className='chat-item';
+        const title = document.createElement('span'); title.textContent=c.title; title.style.flex='1'; title.onclick=()=>loadChat(c.title);
+        const btn = document.createElement('span'); btn.className='chat-options-btn'; btn.textContent='⋯'; btn.onclick=(e)=>{e.stopPropagation(); toggleMenu(li)};
+        const menu = document.createElement('div'); menu.className='chat-options-menu';
+
+        const rename = document.createElement('div'); rename.textContent='Rename';
+        rename.onclick=async ()=>{ const nt=prompt('Rename chat:', c.title); if(nt && nt.trim()){ c.title=nt.trim(); c.updatedAt=Date.now(); updateChatList(); await persistChatToCloud(c); } };
+
+        const del = document.createElement('div'); del.textContent='Delete';
+        del.onclick=async ()=>{ savedChats=savedChats.filter(x=>x.title!==c.title); updateChatList(); cacheChatsLocally(); await deleteChatCloud(c); };
+
+        menu.appendChild(rename); menu.appendChild(del);
+        li.appendChild(title); li.appendChild(btn); li.appendChild(menu); ul.appendChild(li);
+      });
+      cacheChatsLocally();
+    }
+    function toggleMenu(item){
+      const menu = item.querySelector('.chat-options-menu');
+      document.querySelectorAll('.chat-options-menu').forEach(m=>m.classList.remove('show'));
+      if(menu) menu.classList.add('show');
+      document.addEventListener('click',()=>menu.classList.remove('show'),{once:true});
+    }
+    async function newChat(){
+      const existing = savedChats.find(c=>c.title===currentChatTitle);
+      if(currentChatTitle && !existing){ await saveCurrentChat(currentChatTitle); }
+      document.getElementById('messages').innerHTML='';
+      currentChatTitle=null;
+    }
+    function loadChat(title){
+      const found = savedChats.find(c=>c.title===title);
+      if(found){
+        document.getElementById('messages').innerHTML = found.html;
+        document.getElementById('chatUI').style.display='flex';
+        document.getElementById('landing').style.display='none';
+        // Do not auto-show history on mobile
+        if (window.innerWidth >= 900){
+          document.getElementById('chatHistory').style.display='flex';
+          document.body.classList.add('sidebar-open');
+        }
+        currentChatTitle = found.title;
+      }
+    }
+
+    /***********************
+     * Markdown minimal renderer + sanitizer
+     ***********************/
+    function escapeHTML(s){
+      return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+    function sanitizeHTML(html){
+      // Remove <script>...</script> and on* attributes
+      const div = document.createElement('div');
+      div.innerHTML = html;
+      const scripts = div.querySelectorAll('script');
+      scripts.forEach(s=>s.remove());
+      const all = div.getElementsByTagName('*');
+      for(let el of all){
+        [...el.attributes].forEach(a=>{
+          if(/^on/i.test(a.name)) el.removeAttribute(a.name);
+          if(a.name.toLowerCase()==='href' && /^javascript:/i.test(a.value)) el.removeAttribute('href');
+        });
+      }
+      return div.innerHTML;
+    }
+    function renderMarkdown(src){
+      // very small, fast, safe-ish markdown renderer
+      // 1) escape first
+      let s = escapeHTML(src);
+
+      // code blocks ``` ```
+      s = s.replace(/```([\s\S]*?)```/g, (m,code)=>`<pre><code>${code}</code></pre>`);
+
+      // headings
+      s = s.replace(/^\s*###### (.*)$/gm, '<h6>$1</h6>');
+      s = s.replace(/^\s*##### (.*)$/gm, '<h5>$1</h5>');
+      s = s.replace(/^\s*#### (.*)$/gm, '<h4>$1</h4>');
+      s = s.replace(/^\s*### (.*)$/gm, '<h3>$1</h3>');
+      s = s.replace(/^\s*## (.*)$/gm, '<h2>$1</h2>');
+      s = s.replace(/^\s*# (.*)$/gm, '<h1>$1</h1>');
+
+      // inline code
+      s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
+      // bold and italics
+      s = s.replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
+      s = s.replace(/\*([^*]+)\*/g, '<i>$1</i>');
+
+      // unordered lists (simple)
+      // turn consecutive lines starting with - or * into a UL
+      s = s.replace(/(?:^|\n)([-*] .*(?:\n[-*] .*)+)/g, (m)=>{
+        const items = m.trim().split('\n').map(l=>l.replace(/^[-*] (.*)$/,'<li>$1</li>')).join('');
+        return `\n<ul>${items}</ul>`;
+      });
+
+      // paragraphs: split on blank lines, wrap in <p>, but avoid inside pre/code/ul/li/h*
+      const blocks = s.split(/\n{2,}/).map(chunk=>{
+        const isBlock = /^(<h[1-6]|<ul>|<pre>|<p>|<blockquote|<table|<ol>)/.test(chunk.trim());
+        if(isBlock) return chunk;
+        // keep single newlines as <br>
+        return `<p>${chunk.replace(/\n/g,'<br>')}</p>`;
+      }).join('\n');
+
+      return sanitizeHTML(blocks);
+    }
+
+    /***********************
+     * Inline edit message
+     ***********************/
+    function appendMessage(sender,text,id=null,{editable=false, streaming=false}={}){
+      const msg = document.createElement('div');
+      msg.className = `bubble ${sender}` + (streaming ? ' streaming empty' : '');
+      if(id) msg.id=id;
+
+      if(streaming){
+        // start as dot only
+        const dot = document.createElement('span');
+        dot.className = 'pulsing-dot';
+        msg.appendChild(dot);
+      }else{
+        if(sender==='bot'){
+          msg.classList.add('bot');
+          msg.innerHTML = renderMarkdown(text || '');
+        }else{
+          msg.textContent = text || '';
+        }
+      }
+
+      if(editable && sender==='user'){
+        msg.classList.add('editable-user');
+        const editBtn = document.createElement('span');
+        editBtn.className='edit-btn';
+        editBtn.title = 'Edit';
+        editBtn.textContent = '✎';
+
+        editBtn.onclick = ()=>{
+          const original = text || '';
+          msg.innerHTML = '';
+          const ta = document.createElement('textarea');
+          ta.value = original;
+          ta.style.cssText = "width:100%; min-width:240px; max-width: min(760px, 80vw); background:#0f0f0f; color:#eee; border:1px solid #333; border-radius:8px; padding:10px; resize:vertical; min-height:70px";
+          const row = document.createElement('div');
+          row.style.cssText = "display:flex; gap:8px; margin-top:8px";
+          const cancel = document.createElement('button');
+          cancel.textContent = 'Cancel';
+          cancel.style.cssText = "padding:8px 12px; background:#333; color:#eee; border:none; border-radius:8px; cursor:pointer";
+          const save = document.createElement('button');
+          save.textContent = 'Save & Resend';
+          save.style.cssText = "padding:8px 12px; background:#70d6ff; color:#000; border:none; border-radius:8px; cursor:pointer; font-weight:700";
+
+          row.appendChild(cancel); row.appendChild(save);
+          msg.appendChild(ta); msg.appendChild(row);
+
+          cancel.onclick = ()=>{
+            msg.innerHTML = '';
+            msg.textContent = original;
+            const e = document.createElement('span');
+            e.className='edit-btn'; e.textContent='✎'; e.onclick=()=>editBtn.onclick();
+            msg.appendChild(e);
+            if(currentChatTitle){
+              const idx = savedChats.findIndex(c=>c.title===currentChatTitle);
+              if(idx!==-1){ savedChats[idx].html = document.getElementById('messages').innerHTML; persistChatToCloud(savedChats[idx]); }
+            }
+          };
+          save.onclick = ()=>{
+            const revised = ta.value.trim();
+            if(!revised) return;
+            msg.innerHTML=''; msg.textContent=revised;
+            const e = document.createElement('span');
+            e.className='edit-btn'; e.textContent='✎'; e.onclick=()=>editBtn.onclick();
+            msg.appendChild(e);
+            if(currentChatTitle){
+              const idx = savedChats.findIndex(c=>c.title===currentChatTitle);
+              if(idx!==-1){ savedChats[idx].html = document.getElementById('messages').innerHTML; persistChatToCloud(savedChats[idx]); }
+            }
+            ask(revised, id);
+          };
+        };
+
+        msg.appendChild(editBtn);
+      }
+
+      const box = document.getElementById('messages');
+      box.appendChild(msg);
+      box.scrollTop = box.scrollHeight;
+      return msg;
+    }
+
+    function decrementCreditIfNeeded(){
+      const user = auth.currentUser; if(!user) return false;
+      const plan = localStorage.getItem(planKey(user.uid))||'NONE';
+      if(plan!=='NONE') return true;
+      let credits = parseInt(localStorage.getItem(creditsKey(user.uid) )||'3',10);
+      if(credits<=0) return false;
+      credits -= 1;
+      localStorage.setItem(creditsKey(user.uid), String(credits));
+      updateTopBar();
+      return true;
+    }
+
+    /***********************
+     * Upload attachments
+     * (expects a backend /upload that returns {files:[{id,name}...]})
+     ***********************/
+    const fileInput = document.getElementById('fileInput');
+    let pendingFiles = [];  // [{id,name}] returned by server after upload, gets cleared after ask()
+    fileInput.addEventListener('change', async (e)=>{
+      const files = Array.from(e.target.files||[]);
+      if(files.length===0) return;
+      try{
+        const form = new FormData();
+        files.forEach(f=>form.append('files', f, f.name));
+        const headers = {};
+        const u = auth.currentUser;
+        if(u){ headers['X-User-Id']=u.uid; headers['X-User-Plan']=(localStorage.getItem(planKey(u.uid))||'NONE').toLowerCase(); }
+        const res = await fetch(`${API_BASE}/upload`, { method:'POST', body:form, headers });
+        if(!res.ok){ toast('Upload failed'); return; }
+        const data = await res.json();
+        pendingFiles = (data.files||[]).map(x=>({id:x.id, name:x.name}));
+        toast(`${pendingFiles.length} file(s) ready`);
+      }catch(err){
+        console.error(err); toast('Upload error');
+      }finally{
+        fileInput.value = '';
+      }
+    });
+
+    /***********************
+     * Ask (streaming)
+     ***********************/
+    async function ask(customText=null, editedId=null){
+      const btn    = document.getElementById('sendBtn');
+      const qInput = document.getElementById('q');
+      const q      = customText || qInput.value.trim();
+      if(!q) return;
+
+      const user = auth.currentUser;
+      const plan = user ? (localStorage.getItem(planKey(user.uid))||'NONE') : 'NONE';
+      if(plan==='NONE'){
+        if(!user){ toast('Login to use free weekly messages.'); openLoginModal('Login required'); return; }
+        const credits = parseInt(localStorage.getItem(creditsKey(user.uid) )||'3',10);
+        if(credits<=0){ toast('You used all 3 free messages this week.'); openPlansPopup(); return; }
+      }
+
+      qInput.value = '';
+      btn.disabled = true;
+
+      const userMsgId = editedId || `user-${Date.now()}`;
+      if(!customText || !editedId) appendMessage('user', q, userMsgId, {editable:true});
+
+      // streaming bubble: start as tiny dot only
+      const botId = `stream-${Date.now()}`;
+      const streamingBubble = appendMessage('bot','', botId, {streaming:true});
+      streamingBubble.classList.add('empty');
+
+      if(plan==='NONE'){ decrementCreditIfNeeded(); }
+
+      try{
+        const headers = {
+          'Content-Type':'application/json',
+          'X-User-Id'  : user?.uid || '',
+          'X-User-Plan': (plan || 'NONE').toLowerCase()
+        };
+
+        const payload = { question: q };
+        if (pendingFiles.length > 0){
+          payload.files = pendingFiles; // backend can look them up and include in context
+        }
+
+        const ctl = new AbortController();
+        const timeout = setTimeout(()=>ctl.abort(), STREAM_TIMEOUT_MS);
+
+        const res = await fetch(`${API_BASE}/ask`, {
+          method:'POST',
+          headers,
+          body: JSON.stringify(payload),
+          signal: ctl.signal
+        });
+        clearTimeout(timeout);
+
+        if(!res.ok){
+          const errText = await res.text().catch(()=>String(res.status));
+          streamingBubble.classList.remove('empty','streaming');
+          streamingBubble.textContent = `Server error (${res.status}). ${errText || ''}`.trim();
+          return;
+        }
+
+        const box   = document.getElementById('messages');
+        let full    = '';
+
+        if (res.body && 'getReader' in res.body) {
+          const reader  = res.body.getReader();
+          const decoder = new TextDecoder();
+          while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            if (value) {
+              full += decoder.decode(value, { stream:true });
+              // on first token: convert from "dot-only" to text bubble
+              if (streamingBubble.classList.contains('empty')){
+                streamingBubble.classList.remove('empty');
+                streamingBubble.innerHTML = ''; // remove dot
+              }
+              // keep raw text during stream to avoid flicker; render markdown after complete
+              streamingBubble.textContent = full;
+              box.scrollTop = box.scrollHeight;
+            }
+          }
+        } else {
+          const text = await res.text();
+          full = text || '(empty response)';
+          streamingBubble.classList.remove('empty');
+          streamingBubble.textContent = full;
+        }
+
+        // Final markdown render (prevents overlapping + applies bold/headings etc)
+        streamingBubble.classList.add('bot');
+        streamingBubble.innerHTML = renderMarkdown(full);
+
+        // Persist snapshot to history
+        if(!currentChatTitle){
+          currentChatTitle = q.length>35 ? q.slice(0,35)+'…' : q;
+          await saveCurrentChat(currentChatTitle);
+        }else{
+          const idx = savedChats.findIndex(c=>c.title===currentChatTitle);
+          if(idx!==-1){
+            savedChats[idx].html = document.getElementById('messages').innerHTML;
+            await persistChatToCloud(savedChats[idx]);
+          }
+        }
+      } catch (err){
+        console.error(err);
+        streamingBubble.classList.remove('empty','streaming');
+        streamingBubble.textContent = 'Error responding. Check server.';
+      } finally {
+        pendingFiles = [];
+        btn.disabled = false;
+        updateTopBar();
+      }
+    }
+
+    /**********************
+     * Scroll-down helper
+     **********************/
+    const scrollBtn = document.getElementById('scrollDownBtn');
+    const msgBox = document.getElementById('messages');
+    msgBox.addEventListener('scroll', ()=>{
+      const need = msgBox.scrollTop + msgBox.clientHeight < msgBox.scrollHeight - 100;
+      scrollBtn.style.display = need ? 'block' : 'none';
+    });
+    scrollBtn.addEventListener('click', ()=>{ msgBox.scrollTop = msgBox.scrollHeight; });
+
+    /************************************
+     * Console helpers
+     ************************************/
+    window.setPlan = function(uid, plan){
+      if(!uid){ console.log('Pass uid'); return; }
+      localStorage.setItem(planKey(uid), plan);
+      if(plan==='NONE'){ localStorage.setItem(creditsKey(uid),'3'); }
+      else{ localStorage.setItem(creditsKey(uid),'9999'); }
+      updateTopBar();
+      console.log('Plan set:', plan, 'for', uid);
+    };
+    window.showMyState = function(){
+      const u = auth.currentUser; if(!u) return console.log('Login first.');
+      console.log({
+        uid:u.uid,
+        plan: localStorage.getItem(planKey(u.uid)),
+        credits: localStorage.getItem(creditsKey(u.uid)),
+        resetAt: localStorage.getItem(resetKey(u.uid))
+      });
+    };
+
+    // Initial
+    updateTopBar();
+  </script>
+</body>
+</html>

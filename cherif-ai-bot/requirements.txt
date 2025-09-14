@@ -1,7 +1,15 @@
-openai>=1.0.0
-fastapi
-uvicorn
-python-dotenv
-requests
-aiohttp
-websockets
+fastapi==0.115.5
+uvicorn[standard]==0.30.6
+openai==1.57.3
+stripe==9.12.0
+firebase-admin==6.5.0
+python-multipart==0.0.9
+
+# only if your code actually imports these:
+requests==2.32.3
+aiohttp==3.9.5
+websockets==12.0
+
+# only if your code actually uses them:
+pypdf==4.3.1
+python-docx==1.1.2

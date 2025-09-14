@@ -1,0 +1,541 @@
+/* ===== Root and Global Styles ===== */
+:root {
+  --color-bg: #0B0D10;            /* Dark background (luxury feel) */
+  --color-bg-alt: #151821;        /* Slightly lighter dark for sections */
+  --color-text: #F5F5F5;          /* Near-white text for contrast */
+  --color-muted: #A0A6B2;         /* Muted text (grey) for secondary info */
+  --color-accent: #4E91FF;        /* Accent color: futuristic blue */
+  --color-accent-alt: #00C896;    /* Secondary accent (teal) for highlights/success */
+  --font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  font-family: var(--font-family);
+  background: var(--color-bg);
+  color: var(--color-text);
+  line-height: 1.6;
+}
+h1, h2, h3, h4, h5, h6, p {
+  margin: 0;
+}
+ul {
+  list-style: none;
+  padding: 0;
+}
+a {
+  color: var(--color-text);
+  text-decoration: none;
+}
+button {
+  font-family: var(--font-family);
+}
+
+/* ===== Navbar ===== */
+.navbar {
+  position: sticky;
+  top: 0;
+  width: 100%;
+  background: rgba(11, 13, 16, 0.8);  /* semi-transparent dark */
+  backdrop-filter: blur(10px);
+  z-index: 1000;
+}
+.navbar-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0.5em 1em;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.logo {
+  font-size: 1.2rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: var(--color-accent);
+}
+.nav-links a {
+  margin: 0 1em;
+  font-size: 0.95rem;
+  opacity: 0.9;
+}
+.nav-links a:hover {
+  opacity: 1;
+}
+.nav-cta {
+  display: flex;
+  align-items: center;
+}
+.nav-cta .btn {
+  margin-left: 0.5em;
+}
+.user-menu {
+  display: flex;
+  align-items: center;
+}
+#user-greeting {
+  margin-right: 0.8em;
+  font-weight: 500;
+}
+.plan-indicator {
+  margin-right: 1em;
+  font-size: 0.9rem;
+  color: var(--color-accent-alt);
+}
+.mobile-menu-toggle {
+  display: none;
+  background: none;
+  border: none;
+  color: var(--color-text);
+  font-size: 1.5rem;
+  cursor: pointer;
+}
+.mobile-nav-dropdown {
+  display: none;
+  flex-direction: column;
+  background: var(--color-bg-alt);
+  text-align: center;
+}
+.mobile-nav-dropdown a {
+  padding: 0.75em;
+  border-bottom: 1px solid #222;
+}
+.mobile-auth-buttons {
+  padding: 0.75em;
+}
+.mobile-auth-buttons .btn {
+  margin: 0.25em;
+}
+
+/* ===== Hero Section ===== */
+.hero-section {
+  position: relative;
+  text-align: center;
+  color: var(--color-text);
+  padding: 5em 1em;
+  background: url('https://images.unsplash.com/photo-1502920917128-1aa500764b07?ixlib=rb-1.2.1&auto=format&fit=crop&w=2089&q=80') center/cover no-repeat;
+  /* ^ A high-end city skyline image (example from Unsplash). Replace with relevant image. */
+}
+.hero-section::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(11, 13, 16, 0.6);  /* dark overlay for contrast */
+}
+.hero-content {
+  position: relative;
+  z-index: 1;
+  max-width: 700px;
+  margin: 0 auto;
+}
+.hero-title {
+  font-size: 2.5rem;
+  font-weight: 600;
+  margin-bottom: 0.3em;
+}
+.hero-subtitle {
+  font-size: 1.1rem;
+  font-weight: 400;
+  color: var(--color-muted);
+  margin-bottom: 1.5em;
+}
+.hero-cta {
+  font-size: 1.1rem;
+  padding: 0.8em 1.5em;
+}
+
+/* ===== Features Section ===== */
+.features-section {
+  padding: 4em 1em;
+  background: var(--color-bg-alt);
+  text-align: center;
+}
+.features-section h2 {
+  font-size: 1.8rem;
+  margin-bottom: 1em;
+}
+.feature-steps {
+  display: flex;
+  justify-content: space-around;
+  flex-wrap: wrap;
+  gap: 2em;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+.feature {
+  flex: 1 1 200px;
+  max-width: 300px;
+}
+.feature-icon {
+  font-size: 2rem;
+  margin-bottom: 0.5em;
+}
+.feature h3 {
+  font-size: 1.1rem;
+  margin-bottom: 0.5em;
+}
+.feature p {
+  font-size: 0.95rem;
+  color: var(--color-muted);
+}
+
+/* ===== Examples Section ===== */
+.examples-section {
+  padding: 4em 1em;
+}
+.examples-section h2 {
+  text-align: center;
+  font-size: 1.8rem;
+  margin-bottom: 1em;
+}
+.examples-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2em;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+.qa-item {
+  background: #1E222D;
+  padding: 1.5em;
+  border-radius: 8px;
+  flex: 1 1 300px;
+}
+.qa-item .question {
+  font-size: 1rem;
+  margin-bottom: 0.5em;
+  color: var(--color-accent);
+}
+.qa-item .answer {
+  font-size: 0.95rem;
+  color: var(--color-text);
+  line-height: 1.5;
+}
+.examples-note {
+  font-size: 0.9rem;
+  color: var(--color-muted);
+  text-align: center;
+  margin-top: 1.5em;
+}
+
+/* ===== Testimonials Section ===== */
+.testimonials-section {
+  padding: 4em 1em;
+  background: var(--color-bg-alt);
+  text-align: center;
+}
+.testimonials-section h2 {
+  font-size: 1.8rem;
+  margin-bottom: 2em;
+}
+.testimonial-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2em;
+  justify-content: center;
+}
+.testimonial-card {
+  background: #1E1E1E;
+  padding: 2em;
+  border-radius: 6px;
+  flex: 1 1 250px;
+  max-width: 300px;
+  text-align: left;
+  position: relative;
+}
+.testimonial-card::before {
+  content: "“";
+  font-size: 3rem;
+  color: var(--color-accent);
+  position: absolute;
+  top: -10px;
+  left: -10px;
+}
+.testimonial-text {
+  font-size: 0.95rem;
+  margin-bottom: 1em;
+}
+.testimonial-author {
+  font-size: 0.9rem;
+  color: var(--color-muted);
+  font-style: italic;
+}
+
+/* ===== Pricing Section ===== */
+.pricing-section {
+  padding: 4em 1em;
+  text-align: center;
+}
+.pricing-section h2 {
+  font-size: 1.8rem;
+  margin-bottom: 1em;
+}
+.plans {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 2em;
+  margin-bottom: 2em;
+}
+.plan-card {
+  background: #1E222D;
+  border: 1px solid #2C313C;
+  border-radius: 8px;
+  padding: 2em;
+  flex: 1 1 250px;
+  max-width: 280px;
+  position: relative;
+}
+.plan-card h3 {
+  font-size: 1.3rem;
+  margin-bottom: 0.5em;
+}
+.plan-features {
+  text-align: left;
+  margin: 1em 0;
+}
+.plan-features li {
+  margin: 0.5em 0;
+}
+.plan-price {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0.5em 0;
+}
+.plan-price .per-month {
+  font-size: 1rem;
+  font-weight: 400;
+}
+.plan-card .btn {
+  margin-top: 0.5em;
+  width: 100%;
+}
+.free-plan {
+  border-color: #445067;
+}
+.pro-plan {
+  border-color: var(--color-accent);
+}
+.pro-plan .plan-price {
+  color: var(--color-accent);
+}
+.disabled-btn {
+  background: #3A3F4B;
+  color: #777;
+  cursor: default;
+}
+.pricing-note {
+  font-size: 0.85rem;
+  color: var(--color-muted);
+}
+
+/* ===== FAQ Section ===== */
+.faq-section {
+  padding: 4em 1em;
+  max-width: 800px;
+  margin: 0 auto;
+}
+.faq-section h2 {
+  text-align: center;
+  font-size: 1.8rem;
+  margin-bottom: 1.5em;
+}
+.faq-item {
+  margin-bottom: 1em;
+}
+.faq-question {
+  width: 100%;
+  text-align: left;
+  background: #232630;
+  color: var(--color-text);
+  padding: 0.75em 1em;
+  font-size: 1rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  position: relative;
+}
+.faq-question .faq-toggle {
+  float: right;
+  font-weight: bold;
+}
+.faq-answer {
+  display: none;
+  padding: 0.75em 1em;
+  background: #1A1D26;
+  border-left: 3px solid var(--color-accent);
+  margin-top: 0.5em;
+  border-radius: 4px;
+}
+.faq-answer p {
+  font-size: 0.95rem;
+  color: var(--color-muted);
+  line-height: 1.5;
+}
+
+/* ===== Chat Section ===== */
+.chat-section {
+  background: var(--color-bg-alt);
+}
+.chat-header {
+  background: #0F1218;
+  padding: 1em;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #2C2F36;
+}
+.chat-header h2 {
+  font-size: 1.2rem;
+}
+.chat-plan-reminder {
+  font-size: 0.9rem;
+  color: var(--color-muted);
+}
+.chat-window {
+  position: relative;
+  height: 400px;
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: 1em;
+}
+.chat-messages {
+  display: flex;
+  flex-direction: column;
+}
+.message {
+  max-width: 80%;
+  margin: 0.5em 0;
+  padding: 0.75em 1em;
+  border-radius: 6px;
+  line-height: 1.5;
+}
+.bot-message {
+  align-self: flex-start;
+  background: #2D2F36;
+}
+.user-message {
+  align-self: flex-end;
+  background: var(--color-accent);
+  color: #fff;
+}
+.message-content {
+  font-size: 0.95rem;
+}
+.upgrade-overlay {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.85);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 1em;
+}
+.upgrade-msg {
+  max-width: 300px;
+}
+.upgrade-msg p {
+  margin-bottom: 1em;
+}
+.chat-input-area {
+  display: flex;
+  border-top: 1px solid #2C2F36;
+  padding: 0.5em;
+}
+#chat-input {
+  flex: 1;
+  padding: 0.5em;
+  font-size: 1rem;
+  border: none;
+  outline: none;
+  background: #1C1F26;
+  color: #fff;
+  border-radius: 4px 0 0 4px;
+}
+.send-btn {
+  background: var(--color-accent);
+  border: none;
+  color: #fff;
+  padding: 0 1.2em;
+  font-size: 1rem;
+  border-radius: 0 4px 4px 0;
+  cursor: pointer;
+}
+.send-btn:hover {
+  background: #3A6DC0;
+}
+
+/* ===== Buttons (Global Styles) ===== */
+.btn {
+  cursor: pointer;
+  border: none;
+  border-radius: 4px;
+  padding: 0.6em 1.2em;
+  font-size: 1rem;
+}
+.primary-btn {
+  background: var(--color-accent);
+  color: #fff;
+}
+.primary-btn:hover {
+  background: #3A6DC0;
+}
+.secondary-btn {
+  background: #3A3F4B;
+  color: #fff;
+}
+.secondary-btn:hover {
+  background: #525865;
+}
+
+/* ===== Footer ===== */
+.footer {
+  text-align: center;
+  padding: 2em 1em;
+  background: #0F1218;
+}
+.footer p {
+  margin: 0.2em 0;
+}
+.footer-links a {
+  color: var(--color-muted);
+  font-size: 0.9rem;
+}
+.footer-links a:hover {
+  color: var(--color-text);
+}
+
+/* ===== Responsive Design ===== */
+@media (max-width: 768px) {
+  /* Stack feature boxes vertically on mobile */
+  .feature-steps {
+    flex-direction: column;
+    align-items: center;
+  }
+  /* Collapse nav links, show mobile toggle */
+  .nav-links { display: none; }
+  .mobile-menu-toggle {
+    display: inline-block;
+  }
+  .navbar-container {
+    /* space-between with toggle shown should be fine as is */
+  }
+  /* Adjust testimonial and plans layout */
+  .testimonial-cards {
+    flex-direction: column;
+    align-items: center;
+  }
+  .plans {
+    flex-direction: column;
+    align-items: center;
+  }
+  /* Chat window height a bit smaller on small screens */
+  .chat-window {
+    height: 300px;
+  }
+}
