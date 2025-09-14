@@ -1,1300 +1,984 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Real Estate GPT</title>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Real Estate GPT</title>
 
-  <!-- Icons -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+<!-- Icons -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"/>
 
-  <!-- Firebase core + Auth (compat) -->
-  <script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-auth-compat.js"></script>
-  <!-- Firestore (compat) -->
-  <script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-firestore-compat.js"></script>
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-firestore-compat.js"></script>
+<link rel="stylesheet" href="https://www.gstatic.com/firebasejs/ui/6.0.2/firebase-ui-auth.css"/>
+<script src="https://www.gstatic.com/firebasejs/ui/6.0.2/firebase-ui-auth.js"></script>
 
-  <!-- FirebaseUI (Auth UI) -->
-  <link rel="stylesheet" href="https://www.gstatic.com/firebasejs/ui/6.0.2/firebase-ui-auth.css"/>
-  <script src="https://www.gstatic.com/firebasejs/ui/6.0.2/firebase-ui-auth.js"></script>
+<!-- Stripe -->
+<script src="https://js.stripe.com/v3/"></script>
 
-  <!-- Stripe.js -->
-  <script src="https://js.stripe.com/v3/"></script>
+<style>
+  :root{
+    --bg:#0b0b0c; --panel:#121214; --panel2:#141416; --text:#f3f2ee; --muted:#b9b8b3;
+    --brand:#70d6ff; --line:#232326; --bubble:#1a1b1f; --bubbleUser:#23242a;
+    --sidebar-w:320px; --input-h:66px; --focus:#9de6ff;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+    color:var(--text);
+    background:var(--bg);
+    /* --- updated: add cubes texture layer --- */
+    background-image:
+      url('https://www.transparenttextures.com/patterns/cubes.png'),
+      radial-gradient(circle at 25px 25px, rgba(255,255,255,0.04) 1px, transparent 1px),
+      radial-gradient(circle at 55px 55px, rgba(255,255,255,0.03) 1px, transparent 1px);
+    background-size:auto, 80px 80px, 80px 80px;
+    background-position:0 0, 0 0, 40px 40px;
+    background-repeat:repeat, repeat, repeat;
+    display:flex;
+    flex-direction:column;
+    overflow:hidden;
+  }
 
-  <style>
-    :root{
-      --bg:#0d0d0d; --panel:#121212; --panel2:#131313;
-      --text:#e7e4d8; --muted:#a7a6a0; --brand:#70d6ff; --line:#222;
-      --bubble:#1b1b1b; --bubbleUser:#2a2a2a; --accent:#202020;
-      --sidebar-w:250px;
-      --dot: 14px;
-      --bubble-max: 75vw;
-      --input-h: 64px; /* total height of input bar */
-      --focus:#99e1ff;
-    }
-    *{box-sizing:border-box}
-    html,body{height:100%}
-    body{
-      margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
-      background:var(--bg); color:var(--text); display:flex; flex-direction:column; overflow:hidden;
-    }
+  /* --- optional: ensure landing + chat areas show texture even if separated --- */
+  .landing,
+  .chat{
+    background:transparent; /* inherits body pattern */
+  }
 
-    /* Top bar */
-    .topbar{
-      height:50px; padding:0 12px; display:flex; align-items:center; gap:10px;
-      justify-content:space-between; background:var(--panel2); border-bottom:1px solid var(--line);
-      position:relative; z-index:3;
-    }
-    .left,.right{display:flex; align-items:center; gap:10px}
-    .title{font-weight:700; letter-spacing:.2px; cursor:pointer}
-    .medawar{color:#888; font-size:.9rem}
-    .badge{padding:6px 10px; border:1px solid #333; border-radius:999px; background:#101010; font-size:.85rem}
-    .counter{opacity:.9}
-    .link{color:var(--brand); cursor:pointer; font-size:.95rem}
-    .tog{cursor:pointer; opacity:.9}
+  /* --- optional: inside scrolling messages pane keep same pattern --- */
+  .msgs{
+    background:rgba(0,0,0,0); /* transparent so body pattern shows through */
+  }
+  /* If you want a slight overlay behind bubbles uncomment:
+  .msgs::before{
+    content:'';
+    position:fixed;
+    inset:0;
+    pointer-events:none;
+    background:rgba(11,11,12,0.35);
+    z-index:-1;
+  }
+  */
+  /* TOPBAR */
+  .topbar{
+    height:54px; padding:0 10px; display:flex; align-items:center; justify-content:space-between;
+    background:var(--panel2); border-bottom:1px solid var(--line); position:relative; z-index:5;
+  }
+  .left,.right{display:flex; align-items:center; gap:10px}
+  .btn-ico{display:inline-flex; align-items:center; gap:8px; cursor:pointer; color:#eae9e4}
+  .btn-ico i{opacity:.92}
+  .btn-ico:hover{color:#fff}
+  .title{font-weight:800; letter-spacing:.2px; cursor:pointer}
+  .badge{padding:6px 10px; border:1px solid #2a2a2d; border-radius:999px; background:#0e0e10; font-size:.86rem}
+  #counter{min-width:54px; text-align:center}
+  #welcomeChip{display:none}
 
-    .container{flex:1; display:flex; min-height:0}
-    .main-content{flex:1; display:flex; flex-direction:column; min-height:0; transition: margin-right .2s ease}
+  /* LAYOUT */
+  .container{flex:1; display:flex; min-height:0}
+  .main{flex:1; display:flex; flex-direction:column; min-height:0; transition:margin-right .18s}
+  body.sidebar-open .main{ margin-right: var(--sidebar-w); }
+  .side{ position:fixed; right:0; top:54px; height:calc(100% - 54px); width:var(--sidebar-w);
+         background:var(--panel); border-left:1px solid var(--line); padding:12px; display:none; flex-direction:column; gap:10px; z-index:4 }
+  .side.show{display:flex}
+  .side h4{margin:4px 0 6px}
+  .side ul{list-style:none; margin:0; padding:0}
+  .side li{ padding:9px 8px; border-bottom:1px solid #222; color:#e6e5df; cursor:pointer; display:flex; justify-content:space-between; align-items:center; }
+  .side li:hover{background:#17181b}
+  .chip-action{color:var(--brand); font-size:.92rem}
+  .plans-link{ margin-top:auto; text-align:center; padding:10px; color:var(--brand); border:1px solid #222; border-radius:10px; background:#0f1013; cursor:pointer }
 
-    /* Shift content when sidebar is open (desktop) */
-    @media (min-width: 900px){
-      body.sidebar-open .main-content{ margin-right: var(--sidebar-w); }
-    }
+  /* LANDING */
+  .landing{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:10px}
+  .logo{font-size:2.8rem; font-weight:900}
+  .tag{color:#cfcfca; letter-spacing:.2px}
+  .cta{padding:12px 24px; border-radius:12px; border:1px solid #222; background:#17181b; color:var(--text); cursor:pointer}
+  .ext{display:flex; gap:12px; margin-top:12px}
+  .ext a{padding:8px 12px; background:#101115; border-radius:8px; color:#7ed9ff; text-decoration:none}
 
-    /* Right history panel */
-    .side-panel{
-      position:fixed; right:0; top:50px; height:calc(100% - 50px); width:var(--sidebar-w);
-      background:var(--panel); border-left:1px solid #2a2a2a; padding:12px;
-      display:none; flex-direction:column; gap:10px; z-index:4;
-    }
-    .side-panel h4{margin:4px 0 6px}
-    .side-panel ul{list-style:none; margin:0; padding:0}
-    .side-panel li{
-      padding:7px 0; border-bottom:1px solid #2a2a2a; cursor:pointer; color:#ddd; display:flex;
-      justify-content:space-between; align-items:center; position:relative;
-    }
-    .chat-options-btn{opacity:0; transition:opacity .15s}
-    .chat-item:hover .chat-options-btn{opacity:1}
-    .chat-options-menu{display:none; position:absolute; right:6px; top:22px; background:#1a1a1a; border:1px solid #333; border-radius:6px; padding:5px 0; z-index:10}
-    .chat-options-menu.show{display:block}
-    .chat-options-menu div{padding:6px 12px; cursor:pointer; font-size:.85rem}
-    .chat-options-menu div:hover{background:#333}
-    .plans{
-      margin-top:auto; text-align:center; padding:10px; font-size:.95rem; color:var(--brand);
-      background:var(--panel2); border-radius:10px; cursor:pointer; border:1px solid #222;
-    }
+  /* CHAT */
+  .chat{flex:1; display:none; flex-direction:column; min-height:0}
+  .msgs{flex:1; overflow:auto; padding:16px 16px calc(var(--input-h) + 14px); display:flex; flex-direction:column; gap:14px}
+  .bubble{max-width:min(820px,82vw); padding:12px 14px; border-radius:14px; background:#1b1c21; border:1px solid #26272c; line-height:1.45; word-wrap:break-word; overflow-wrap:anywhere}
+  .bubble.user{align-self:flex-end; background:var(--bubbleUser)}
+  .bubble.bot{align-self:flex-start}
+  .bubble.streaming{padding:10px 12px; display:inline-flex; align-items:center; gap:10px}
+  .dot{width:14px;height:14px;border-radius:50%;background:var(--brand);opacity:.85;animation:pulse .9s infinite ease-in-out}
+  @keyframes pulse{0%{transform:scale(1);opacity:.6}50%{transform:scale(1.22);opacity:1}100%{transform:scale(1);opacity:.65}}
 
-    /* Landing */
-    .landing{
-      flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:10px;
-      background:var(--bg) url('https://www.transparenttextures.com/patterns/cubes.png');
-    }
-    .logo{font-size:3rem; margin:6px 0 2px}
-    .tagline{font-size:1.05rem; color:#bbb; margin-bottom:10px}
-    .start-btn{
-      padding:12px 26px; border-radius:12px; border:1px solid #222; background:#171717; color:var(--text);
-      font-size:1rem; cursor:pointer;
-    }
-    .start-btn:hover{background:#1b1b1b}
-    .external-links{margin-top:18px; display:flex; gap:16px}
-    .external-links a{padding:8px 14px; background:#111; border-radius:8px; color:#73d9ff; text-decoration:none}
+  /* INPUT */
+  .input{ position:fixed; left:0; right:0; bottom:0; background:var(--panel2); border-top:1px solid var(--line);
+          padding:10px 10px calc(10px + env(safe-area-inset-bottom)); z-index:6; transition:right .18s; display:none }
+  body.sidebar-open .input{ right: var(--sidebar-w); }
+  .attach{ display:none; gap:6px; flex-wrap:wrap; max-height:64px; overflow:auto; margin-bottom:6px }
+  .attach.show{display:flex}
+  .chip{display:inline-flex; align-items:center; gap:6px; padding:6px 10px; background:#131419; border:1px solid #2c2e33; border-radius:999px; font-size:.9rem}
+  .chip .x{cursor:pointer; opacity:.8}
+  .row{display:flex; align-items:center; gap:10px}
+  .row input[type="text"]{flex:1; padding:12px; border-radius:12px; border:1px solid #2a2b30; background:#121319; color:var(--text); outline-color:var(--focus)}
+  .icon-btn{ width:44px; height:44px; display:inline-flex; align-items:center; justify-content:center; border-radius:12px; background:#14151a; border:1px solid #2a2a2e; color:#e9e8e3; }
+  .send{ padding:12px 18px; border:none; border-radius:12px; background:#262830; color:#fff; cursor:pointer }
+  .send:hover{background:#2c2f38}
+  .send:disabled{opacity:.5; cursor:not-allowed}
 
-    /* Chat */
-    .chat{ flex:1; display:none; flex-direction:column; min-height:0;
-      background:var(--bg) url('https://www.transparenttextures.com/patterns/cubes.png');
-    }
-    .messages{
-      flex: 1;
-      overflow-y: auto;
-      -webkit-overflow-scrolling: touch;
-      padding: 18px 18px calc(var(--input-h) + 12px);
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-      min-height:0;
-    }
+  /* MODALS */
+  .modal{ display:none; position:fixed; inset:0; background:rgba(0,0,0,.58); z-index:10; align-items:center; justify-content:center }
+  .card{ width:min(92vw, 560px); background:rgba(18,19,24,.96); border:1px solid #27282e; border-radius:16px; padding:22px; color:#fff; backdrop-filter:blur(10px) }
+  .x{ position:absolute; right:12px; top:10px; cursor:pointer; opacity:.85; font-size:22px }
 
-    /* Bubbles */
-    .bubble{
-      display:inline-block;
-      max-width: min(760px, var(--bubble-max));
-      padding:12px 14px;
-      border-radius:14px;
-      background:var(--bubble);
-      white-space: pre-wrap;
-      line-height:1.45;
-      word-wrap:break-word;
-      overflow-wrap:anywhere;
-      border:1px solid #262626;
-      box-shadow: 0 1px 0 rgba(255,255,255,0.02) inset;
-    }
-    .bubble.bot { align-self:flex-start; background:var(--bubble); }
-    .bubble.user{ align-self:flex-end;   background:var(--bubbleUser); }
+  /* TOAST */
+  #toast{ position:fixed; left:50%; transform:translateX(-50%); bottom:18px; z-index:20; background:#14151a; color:#fff; padding:10px 14px; border:1px solid #2b2c31; border-radius:10px; display:none }
 
-    /* Streaming dot */
-    .bubble.streaming{
-      padding:8px 10px; min-width: var(--dot); min-height: var(--dot);
-      display:inline-flex; align-items:center; gap:8px;
-    }
-    .bubble.streaming.empty{ padding:6px }
+  /* small */
+  @media (max-width: 900px){
+    body.sidebar-open .main{ margin-right:0 }
+    .side{ width:min(92vw, 420px) }
+  }
 
-    .pulsing-dot{
-      width:var(--dot); height:var(--dot); border-radius:50%; background:var(--brand);
-      opacity:.85; animation:pulse .95s infinite ease-in-out
-    }
-    @keyframes pulse{0%{transform:scale(1);opacity:.6}50%{transform:scale(1.25);opacity:1}100%{transform:scale(1);opacity:.65}}
+  /* Ripple */
+  .ripple-effect {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(127,225,255,0.25);
+    transform: scale(0);
+    animation: ripple .5s linear;
+    pointer-events:none;
+    z-index:2;
+    width:100px;
+    height:100px;
+    left:50%;
+    top:50%;
+    margin-left:-50px;
+    margin-top:-50px;
+  }
+  @keyframes ripple { to { transform: scale(2.5); opacity: 0; } }
+  .ripple { position: relative; overflow: hidden; }
 
-    /* Input bar (fixed) */
-    .input-wrap{
-      position: fixed; left: 0; right: 0; bottom: 0;
-      background: var(--panel2); border-top: 1px solid var(--line);
-      padding: 10px env(safe-area-inset-right) calc(10px + env(safe-area-inset-bottom)) env(safe-area-inset-left);
-      z-index: 1000;
-    }
-    .attach-bar{ display:none; gap:6px; flex-wrap:wrap; max-height:64px; overflow:auto; margin-bottom:6px }
-    .attach-bar.show{ display:flex; }
-    .chip{ display:inline-flex; align-items:center; gap:6px; padding:6px 10px; background:#1a1a1a; border:1px solid #333; border-radius:999px; font-size:.9rem }
-    .chip .x{ cursor:pointer; opacity:.75 }
-    .input-area{ display:flex; align-items:center; gap:10px; }
-    .input-area input[type="text"]{
-      flex:1; padding:12px; border-radius:10px; border:1px solid #2a2a2a;
-      background:#151515; color:var(--text); font-size:1rem;
-      outline-color: var(--focus);
-    }
-    .input-area .icon-btn{
-      width:44px; height:44px; display:inline-flex; align-items:center; justify-content:center;
-      border-radius:12px; background:#1d1d1d; border:1px solid #2a2a2a; color:#dedede;
-    }
-    .input-area button{
-      padding:12px 18px; border:none; border-radius:12px; background:#2a2a2a; color:var(--text); cursor:pointer;
-    }
-    .input-area button:hover{ background:#333 }
-    .input-area button:disabled{opacity:.55; cursor:not-allowed}
-    .input-area input[type="file"]{ display:none }
+  /* Scrollable plans modal card */
+  #plans .card{ max-height:86vh; overflow:auto; scrollbar-width:thin; }
+  #plans .card::-webkit-scrollbar{ width:8px; }
+  #plans .card::-webkit-scrollbar-track{ background:rgba(255,255,255,0.05); }
+  #plans .card::-webkit-scrollbar-thumb{ background:#2c2f36; border-radius:6px; }
 
-    @media (min-width: 900px){
-      body.sidebar-open .input-wrap{ right: var(--sidebar-w); }
-    }
+  /* --- scrollable saved chats --- */
+  #historyList{
+    max-height:calc(100vh - 140px); /* adjust offset if header/footer height changes */
+    overflow-y:auto;
+    overscroll-behavior:contain;
+    padding-right:4px;
+    scrollbar-width:thin;
+  }
+  #historyList::-webkit-scrollbar{width:8px}
+  #historyList::-webkit-scrollbar-track{background:transparent}
+  #historyList::-webkit-scrollbar-thumb{background:#2b2f35;border-radius:4px}
+  #historyList::-webkit-scrollbar-thumb:hover{background:#3a4047}
 
-    /* Scroll down button */
-    #scrollDownBtn{
-      position:fixed; bottom:calc(var(--input-h) + 12px); left:50%; transform:translateX(-50%);
-      background:var(--brand); color:#000; border:none; border-radius:50%;
-      padding:12px 16px; font-size:1.2rem; display:none; z-index:5; cursor:pointer;
-      box-shadow: 0 8px 30px rgba(0,0,0,.45);
-    }
-
-    /* Modals */
-    .modal{ display:none; position:fixed; inset:0; z-index:20; background:rgba(0,0,0,.65); align-items:center; justify-content:center; }
-    .modal .card{
-      width:min(92vw, 600px);
-      background:rgba(20,20,20,.85);
-      border:1px solid #2a2a2a; border-radius:16px; color:var(--text);
-      padding:22px; position:relative; backdrop-filter: blur(12px);
-      box-shadow: 0 20px 60px rgba(0,0,0,.6);
-    }
-    .modal .close-x{position:absolute; right:12px; top:10px; cursor:pointer; opacity:.85; font-size:22px}
-
-    /* FirebaseUI skin tweaks */
-    #loginModal .card{width:min(92vw, 480px)}
-    .firebaseui-card{background:#141414; border:1px solid #2a2a2a}
-    .firebaseui-title{color:#fff}
-    .firebaseui-link{color:var(--brand)}
-
-    /* Plans modal */
-#plansPopup .card{
-  width:min(92vw, 520px);
-  max-height:90vh;      /* ✅ add this */
-  overflow-y:auto;      /* ✅ and this */
-}
-/* Tiny underlined cancel link */
-.tiny-link{
-  font-size:.92rem; color:#bcbab3; text-decoration:underline; cursor:pointer;
-  display:inline-block; margin-top:6px;
-}
-.tiny-link:hover{ color:#ddd; }
-.plan-header{ display:flex; align-items:center; gap:10px; margin-top:2px }
-.plan-title{ font-weight:800; font-size:1.15rem }
-.plan-sub{ color:#b9b8b2 }
-.price-lg{ font-size:2rem; font-weight:800; margin:6px 0 14px }
-.feature{ color:#cfcfc9; opacity:.9; display:flex; gap:10px; align-items:flex-start }
-.feature i{ color:#7fe1ff }
-.actions{ display:flex; gap:10px; flex-wrap:wrap; margin-top:10px }
-.btn{
-  padding:12px 16px; border:none; border-radius:12px; cursor:pointer; font-weight:700; letter-spacing:.2px;
-  transition: transform .05s ease, background .15s ease;
-}
-.btn:active{ transform: translateY(1px) }
-.btn-primary{ background:#7fe1ff; color:#05222c }
-.btn-dark{ background:#222; color:#eee; border:1px solid #2d2d2d }
-.btn-ghost{ background:#151515; color:#e9e6db; border:1px solid #2a2a2a }
-.note{ color:#bcbab3; font-size:.92rem; text-align:center; margin-top:10px }
-
-    /* Account modal small helpers */
-    #accountModal .avatar{
-      width:48px; height:48px; border-radius:50%; background:#2a2a2a; display:inline-flex; align-items:center; justify-content:center; font-weight:700
-    }
-    #accountModal .row{display:flex; align-items:center; gap:14px}
-    #accountModal .plan-chip{padding:6px 10px; background:#1a1a1a; border:1px solid #333; border-radius:999px}
-    #accountModal .badge-bar{display:flex; gap:10px; flex-wrap:wrap}
-
-    /* Toast */
-    .toast{
-      position:fixed; left:50%; transform:translateX(-50%);
-      bottom:20px; background:#1a1a1a; color:#fff; padding:10px 14px; border-radius:10px; border:1px solid #2c2c2c;
-      z-index:30; display:none
-    }
-
-    /* Mobile sidebar overlay */
-    @media (max-width: 899px){
-      .side-panel{ width:min(94vw, 420px); left:auto; right:0; box-shadow:-10px 0 30px rgba(0,0,0,.5) }
-      .side-panel.show{ display:flex }
-      body.sidebar-open .main-content{ margin-right:0 }
-    }
-
-    :focus:not(:focus-visible){outline:none}
-  </style>
+  /* --- simple 3‑dot menu for history items --- */
+  .history-item{position:relative; padding-right:34px}
+  .history-dots{
+    cursor:pointer; padding:2px 8px; font-weight:700; opacity:.7; user-select:none;
+    border-radius:6px;
+  }
+  .history-dots:hover{opacity:1; background:#1a1b20}
+  .history-popup{
+    position:absolute; top:34px; right:4px; min-width:130px;
+    background:#181a1f; border:1px solid #2a2c31; border-radius:10px;
+    display:none; flex-direction:column; padding:4px 0; z-index:50;
+    box-shadow:0 8px 26px -6px rgba(0,0,0,.55);
+  }
+  .history-popup.show{display:flex}
+  .history-popup div{
+    padding:8px 14px; font-size:.8rem; cursor:pointer; letter-spacing:.3px;
+  }
+  .history-popup div:hover{background:#23252b}
+  .history-popup div.delete{color:#ff7d7d}
+</style>
 </head>
 <body>
-  <!-- Topbar -->
-  <div class="topbar">
-    <div class="left">
-      <div class="title" onclick="goHome()">Real Estate GPT</div>
-      <div class="medawar">Medawar</div>
-    </div>
-    <div class="right">
-      <span id="planBadge" class="badge">Current plan: <b>NONE</b></span>
-      <span id="counter" class="badge counter">3/3</span>
-      <span id="loginBtn" class="link" onclick="loginOrLogout()">Login</span>
-      <span class="tog" onclick="toggleSidebar()" title="History">☰</span>
-      <span class="tog" onclick="openAccount()" title="Account"><i class="fa-regular fa-user"></i></span>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="left">
+    <div class="title" onclick="goHome()">Real Estate GPT</div>
+    <span id="welcomeChip" class="badge"></span>
+  </div>
+  <div class="right">
+    <span id="planBadge" class="badge">Current plan: <b>NONE</b></span>
+    <span id="counter" class="badge">3/3</span>
+    <span class="btn-ico" onclick="openPlansPopup()" title="View plans"><i class="fa-regular fa-credit-card"></i></span>
+    <span class="btn-ico" onclick="openAccount()" title="Account"><i class="fa-regular fa-user"></i></span>
+    <span class="btn-ico" onclick="toggleSidebar()" title="History"><i class="fa-solid fa-bars"></i></span>
+  </div>
+</div>
+
+<div class="container">
+  <!-- SIDE / HISTORY -->
+  <div id="side" class="side">
+    <h4 style="display:flex;justify-content:space-between;align-items:center;margin:0;">
+      Previous Chats <span class="chip-action" onclick="newChat()">+ New Chat</span>
+    </h4>
+    <ul id="historyList" style="margin-top:8px"></ul>
+    <div class="plans-link ripple" onclick="openPlansPopup()" style="position:relative;">
+      <i class="fa-regular fa-credit-card"></i> View Plans
     </div>
   </div>
 
-  <div class="container">
-    <!-- Right history panel -->
-    <div class="side-panel" id="chatHistory">
-      <div>
-        <h4 style="display:flex;justify-content:space-between;align-items:center; margin-top:0;">
-          Previous Chats <span class="tog" onclick="toggleSidebar()">✖</span>
-        </h4>
-        <ul id="historyList">
-          <li onclick="newChat()">+ New Chat</li>
-        </ul>
-      </div>
-      <div class="plans" onclick="openPlansPopup()">View Plans</div>
-    </div>
-
-    <!-- Main column -->
-    <div class="main-content">
-      <!-- Landing -->
-      <div class="landing" id="landing">
-        <div class="logo">Real Estate GPT</div>
-        <div class="tagline">POWERED BY THE BRAIN OF CHERIF MEDAWAR</div>
-        <button class="start-btn" onclick="startChat()">Start Chatting</button>
-        <div class="external-links">
-          <a href="https://www.cherifmedawar.com/about-us/" target="_blank">About Cherif</a>
-          <a href="https://cmrei.com" target="_blank">Visit CMREI</a>
-          <a href="https://form.jotform.com/222204088428049" target="_blank">CRE Test</a>
+  <!-- MAIN -->
+  <div class="main">
+    <!-- LANDING -->
+    <div id="landing" class="landing">
+      <div class="logo">Real Estate GPT</div>
+      <div class="tag">OpenAI intelligence infused with Cherif Medawar's real estate knowledge</div>
+      <button class="cta" onclick="startChat()">Start Chatting</button>
+      <div class="ext">
+        <a target="_blank" href="https://www.cherifmedawar.com/about-us/">About Cherif</a>
+        <a target="_blank" href="https://cmrei.com">Visit CMREI</a>
+        <a target="_blank" href="https://form.jotform.com/222204088428049">CRE Test</a>
         </div>
-      </div>
-
-      <!-- Chat UI -->
-      <div class="chat" id="chatUI">
-        <div class="messages" id="messages"></div>
-        <button id="scrollDownBtn">↓</button>
-
-        <div class="input-wrap">
-          <!-- Attachment chips bar -->
-          <div id="attachBar" class="attach-bar"></div>
-
-          <div class="input-area">
-            <label class="icon-btn" title="Attach files">
-              <input id="fileInput" type="file" multiple accept=".pdf,.doc,.docx,.txt,.csv,.xlsx,.xls,image/*,application/*" />
-              <i class="fa-solid fa-paperclip"></i>
-            </label>
-            <input id="q" type="text" placeholder="Ask Cherif..." onkeydown="if(event.key==='Enter'){ask()}"/>
-            <button class="send" id="sendBtn" onclick="ask()">Send</button>
-          </div>
-        </div>
+        <div class="tag">OpenAI</div>
       </div>
     </div>
-  </div>
 
-  <!-- Login Modal -->
-  <div id="loginModal" class="modal" aria-hidden="true">
-    <div class="card">
-      <span class="close-x" onclick="closeLogin()">×</span>
-      <h3 id="loginTitle" style="margin:6px 0 10px">Sign In</h3>
-      <div id="firebaseui-auth-container"></div>
-      <div id="firebaseui-auth-spinner" style="display:none">Loading…</div>
-    </div>
-  </div>
-
-  <!-- Plans / Billing Modal -->
-  <div id="plansPopup" class="modal" aria-hidden="true">
-    <div class="card">
-      <span class="close-x" onclick="closePlansPopup()">×</span>
-
-      <h2 style="margin:6px 0 4px; font-size:1.6rem">Choose Your Plan</h2>
-
-      <div class="plan-header">
-        <div class="plan-title">Pro</div>
-        <div class="plan-sub">Unlimited Q&A</div>
-      </div>
-      <div class="price-lg">$17.99 <span style="font-size:1rem; font-weight:600; opacity:.85">/ month</span></div>
-
-      <div class="feature"><i class="fa-regular fa-circle-check"></i> GPT-powered answers optimized for real estate</div>
-      <div class="feature"><i class="fa-regular fa-circle-check"></i> Unlimited messages & file analysis</div>
-      <div class="feature"><i class="fa-regular fa-circle-check"></i> Priority support</div>
-
-      <!-- Facts filled from /billing/status -->
-      <div id="planFacts" style="margin:10px 0 6px; color:#d7d5cd; font-size:.95rem">
-        <div id="pf-email" style="opacity:.9"></div>
-        <div id="pf-card"  style="opacity:.9"></div>
-        <div id="pf-renew" style="opacity:.9"></div>
-      </div>
-
-      <!-- Billing UI -->
-      <div id="billingUI" style="margin-top:14px; display:flex; flex-direction:column; gap:12px">
-        <!-- Payment Element mounts here when adding/updating a card -->
-        <div id="cardWrap" style="display:none; border:1px solid #2a2a2a; border-radius:12px; padding:14px; background:#141414">
-          <div id="card-element"></div>
-          <button id="confirmCardBtn" class="btn btn-primary" style="margin-top:12px">Save card</button>
-        </div>
-
-        <div class="actions">
-          <button id="addCardBtn" class="btn btn-ghost">Add Card</button>
-          <button id="startSubBtn" class="btn btn-primary">Subscribe</button>
-          </div>
-          <div><a id="cancelSubLink" class="tiny-link">Cancel subscription</a></div>
-
-        <div id="billMsg" class="note"></div>
-        <div class="note">After checkout, your plan updates automatically.</div>
-      </div>
-
-      <div style="text-align:center; margin-top:14px">
-        <button class="btn btn-dark" onclick="closePlansPopup()">Close</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Account Modal -->
-  <div id="accountModal" class="modal" aria-hidden="true">
-    <div class="card">
-      <span class="close-x" onclick="closeAccount()">×</span>
-      <h3 style="margin:6px 0 12px">Account</h3>
-      <div class="row">
-        <div id="acctAvatar" class="avatar">U</div>
-        <div style="display:flex; flex-direction:column; gap:4px">
-          <div id="acctName" style="font-weight:700">—</div>
-          <div id="acctEmail" style="color:#bbb; font-size:.95rem">—</div>
-        </div>
-      </div>
-
-      <div class="badge-bar" style="margin:14px 0 6px">
-        <span id="acctPlan" class="plan-chip">Plan: NONE</span>
-        <span id="acctCredits" class="plan-chip">Credits: 3/3</span>
-      </div>
-
-      <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap">
-        <button class="btn btn-dark" onclick="openPlansPopup()">Manage Plan</button>
-        <button class="btn btn-primary" onclick="confirmLogout()">Log out</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Logout Confirm Modal -->
-  <div id="logoutConfirmModal" class="modal" aria-hidden="true">
-    <div class="card">
-      <h3 style="margin:0 0 8px;">Log out?</h3>
-      <p style="margin:0 0 14px;">Are you sure you want to log out? Local cache stays in cloud; this device’s view will be cleared.</p>
-      <div style="display:flex; gap:10px;">
-        <button class="btn btn-primary" onclick="doLogout()">Yes, log out</button>
-        <button class="btn btn-dark" onclick="closeLogoutConfirm()">Cancel</button>
-      </div>
-    </div>
-  </div>
-
-<div id="cancelConfirmModal" class="modal" aria-hidden="true">
-  <div class="card" style="width:min(92vw,420px)">
-    <h3 style="margin:0 0 8px;">Cancel subscription?</h3>
-    <p style="margin:0 0 14px;">Your plan will stay active until the end of the billing period.</p>
-    <div style="display:flex; gap:10px;">
-      <button class="btn btn-primary" id="confirmCancelYes">Yes, cancel</button>
-      <button class="btn btn-dark" id="confirmCancelNo">Keep plan</button>
+    <!-- CHAT -->
+    <div id="chat" class="chat">
+      <div id="msgs" class="msgs"></div>
     </div>
   </div>
 </div>
 
-  <!-- Toast -->
-  <div id="toast" class="toast"></div>
+<!-- INPUT BAR -->
+<div id="input" class="input">
+  <div id="attachBar" class="attach"></div>
+  <div class="row">
+    <label class="icon-btn ripple" title="Attach files">
+      <input id="fileInput" type="file" multiple accept=".pdf,.doc,.docx,.txt,.csv,.xlsx,.xls,image/*,application/*" style="display:none"/>
+      <i class="fa-solid fa-paperclip"></i>
+    </label>
+    <input id="q" type="text" placeholder="Ask Cherif…" />
+    <button id="sendBtn" class="send ripple">Send</button>
+  </div>
+</div>
 
-  <script>
-    /***********************
-     * Firebase setup
-     ***********************/
-    const firebaseConfig = {
-      apiKey: "AIzaSyALyzHcHMfYCCbF2eqinV7XlfOGJCDin4U",
-      authDomain: "realestategpt-ai.firebaseapp.com",
-      projectId: "realestategpt-ai",
-      storageBucket: "realestategpt-ai.firebasestorage.app",
-      messagingSenderId: "822449246072",
-      appId: "1:822449246072:web:82c572361d8455fd52c28d",
-      measurementId: "G-W3E8Q2YKZL"
+<!-- LOGIN MODAL -->
+<div id="loginModal" class="modal" aria-hidden="true">
+  <div class="card" style="position:relative">
+    <span class="x" onclick="closeLogin()">×</span>
+    <h3 id="loginTitle" style="margin:0 0 10px">Sign In</h3>
+    <div id="firebaseui-auth-container"></div>
+    <div id="firebaseui-auth-spinner" style="display:none">Loading…</div>
+  </div>
+</div>
+
+<!-- PLANS / BILLING MODAL -->
+<div id="plans" class="modal" aria-hidden="true">
+  <div class="card" style="position:relative">
+    <span class="x" onclick="closePlans()">×</span>
+    <h2 style="margin:0 0 8px">Choose Your Plan</h2>
+    <div style="color:#d5d4ce;margin-bottom:8px">Pro — Unlimited Q&A</div>
+    <div style="font-size:2rem;font-weight:800;margin:6px 0 12px">$4.99 <span style="font-size:1rem;font-weight:600;opacity:.85">/ month</span></div>
+
+    <div style="display:flex;gap:10px;flex-direction:column;margin-bottom:10px;color:#e8e7e2">
+      <div><i class="fa-regular fa-circle-check" style="color:#7fe1ff"></i> GPT-powered answers any real estate</div>
+      <div><i class="fa-regular fa-circle-check" style="color:#7fe1ff"></i> Unlimited messages & file analysis</div>
+      <div><i class="fa-regular fa-circle-check" style="color:#7fe1ff"></i> Assistance with contract writing</div> 
+      <div><i class="fa-regular fa-circle-check" style="color:#7fe1ff"></i> Cancel Anytime</div>
+    </div>
+
+    <div id="pf-email" style="color:#bdbbb4;margin:6px 0"></div>
+    <div id="pf-card"  style="color:#bdbbb4;margin:2px 0"></div>
+    <div id="pf-renew" style="color:#bdbbb4;margin:2px 0 10px"></div>
+
+    <div id="cardWrap" style="display:block;border:1px solid #2a2b31;border-radius:12px;padding:14px;background:#111318;margin-bottom:10px">
+      <div id="payment-element" style="margin:12px 0;"></div>
+      <button id="purchaseBtn" type="button" class="send ripple" style="background:#79defe;color:#04232d">Subscribe</button>
+      <div id="billingMsg" style="margin-top:8px;font-size:.9rem;"></div>
+    </div>
+
+
+  
+
+    <div id="billMsg" style="margin-top:10px;color:#e7e6df"></div>
+  </div>
+</div>
+
+<!-- ACCOUNT MODAL -->
+<div id="account" class="modal" aria-hidden="true">
+  <div class="card" style="position:relative">
+    <span class="x" onclick="closeAccount()">×</span>
+    <h3 style="margin:0 0 10px">Account</h3>
+    <div style="display:flex;align-items:center;gap:12px">
+      <div id="acctAvatar" class="badge" style="width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800">U</div>
+      <div>
+        <div id="acctName" style="font-weight:700">—</div>
+        <div id="acctEmail" style="color:#bdbbb4;font-size:.95rem">—</div>
+      </div>
+    </div>
+    <div class="badge" id="acctPlan" style="display:inline-block;margin-top:10px">Plan: NONE</div>
+    <div class="badge" id="acctCredits" style="display:inline-block;margin-top:10px">Credits: 3/3</div>
+    <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
+      <button class="send" style="background:#15171d;border:1px solid #2a2b31" onclick="openPlansPopup()">Manage Plan</button>
+      <button class="send" onclick="confirmLogout()">Logout</button>
+    </div>
+  </div>
+</div>
+
+<!-- CANCEL CONFIRM -->
+<div id="cancelConfirm" class="modal" aria-hidden="true">
+  <div class="card">
+    <h3 style="margin:0 0 8px">Cancel subscription?</h3>
+    <p style="margin:0 0 14px;color:#d9d7d1">It’ll remain active until period end.</p>
+    <div style="display:flex;gap:10px">
+      <button id="confirmCancelYes" class="send" style="background:#79defe;color:#04232d">Yes, cancel</button>
+      <button id="confirmCancelNo"  class="send" style="background:#15171d;border:1px solid #2a2b31">Keep</button>
+    </div>
+  </div>
+</div>
+
+<!-- LOGOUT CONFIRM -->
+<div id="logoutConfirm" class="modal" aria-hidden="true">
+  <div class="card">
+    <h3 style="margin:0 0 8px">Log out?</h3>
+    <p style="margin:0 0 14px;color:#d9d7d1">Local view on this device will clear.</p>
+    <div style="display:flex;gap:10px">
+      <button class="send" onclick="doLogout()">Yes, log out</button>
+      <button class="send" style="background:#15171d;border:1px solid #2a2b31" onclick="closeLogoutConfirm()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- WELCOME MODAL -->
+<div id="welcomeModal" class="modal" aria-hidden="true">
+  <div class="card" style="position:relative;text-align:center">
+    <h2 id="welcomeMsg" style="margin:0 0 10px"></h2>
+  </div>
+</div>
+
+<script>
+/* ---------- CONFIG ---------- */
+const firebaseConfig = {
+  apiKey: "AIzaSyALyzHcHMfYCCbF2eqinV7XlfOGJCDin4U",
+  authDomain: "realestategpt-ai.firebaseapp.com",
+  projectId: "realestategpt-ai",
+  storageBucket: "realestategpt-ai.firebasestorage.app",
+  messagingSenderId: "822449246072",
+  appId: "1:822449246072:web:82c572361d8455fd52c28d",
+  measurementId: "G-W3E8Q2YKZL"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db   = firebase.firestore();
+
+const API_BASE = '/api';
+const STREAM_TIMEOUT_MS = 60000;
+
+/* ---------- TOAST ---------- */
+function toast(txt, ms=2200){ const t=document.getElementById('toast'); t.textContent=txt; t.style.display='block'; setTimeout(()=>t.style.display='none', ms); }
+
+/* ---------- UI helpers ---------- */
+function show(el){ el.style.display='flex'; }
+function hide(el){ el.style.display='none'; }
+function toggleSidebar(){
+  const s=document.getElementById('side');
+  const open = s.classList.toggle('show');
+  document.body.classList.toggle('sidebar-open', open);
+}
+function goHome(){
+  document.getElementById('landing').style.display='flex';
+  document.getElementById('chat').style.display='none';
+  const s=document.getElementById('side'); if(s){ s.classList.remove('show'); }
+  document.body.classList.remove('sidebar-open');
+  document.getElementById('input').style.display='none';
+}
+function startChat(){
+  document.getElementById('landing').style.display='none';
+  document.getElementById('chat').style.display='flex';
+  if(window.innerWidth >= 900){
+    const s=document.getElementById('side'); if(s){ s.classList.add('show'); }
+    document.body.classList.add('sidebar-open');
+  } else {
+    const s=document.getElementById('side'); if(s){ s.classList.remove('show'); }
+    document.body.classList.remove('sidebar-open');
+  }
+  document.getElementById('input').style.display='block';
+}
+window.addEventListener('DOMContentLoaded', ()=>{ document.getElementById('input').style.display='none'; });
+
+/* ---------- MODALS ---------- */
+function openLogin(title='Sign In'){
+  document.getElementById('loginTitle').textContent=title;
+  show(document.getElementById('loginModal'));
+  if(!window._ui){ window._ui=new firebaseui.auth.AuthUI(auth); }
+  auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(()=>{});
+  window._ui.start('#firebaseui-auth-container',{
+    signInFlow:'popup',
+    signInOptions:[firebase.auth.GoogleAuthProvider.PROVIDER_ID],
+    callbacks:{signInSuccessWithAuthResult:()=>{ closeLogin(); return false; }}
+  });
+}
+function closeLogin(){ hide(document.getElementById('loginModal')); if(window._ui){ try{_ui.reset();}catch{} } }
+function openPlansPopup(){ ensureSignedIn(async ()=>{ await loadBillingFacts(); show(document.getElementById('plans')); }); }
+async function loadBillingFacts(){
+  const u=auth.currentUser; if(!u) return;
+  try{
+    const r=await fetch('/api/billing/status',{method:'POST',headers:{'Content-Type':'application/json','X-User-Id':u.uid,'X-User-Email':u.email||''}});
+    if(!r.ok) return;
+    const d=await r.json();
+    const emailEl=document.getElementById('pf-email');
+    const cardEl =document.getElementById('pf-card');
+    const renewEl=document.getElementById('pf-renew');
+    if(emailEl) emailEl.textContent=d.email?`Signed in as: ${d.email}`:'';
+    if(cardEl){
+      if(d.default_payment_method){ const c=d.default_payment_method; cardEl.textContent=`Card: ${(c.brand||'CARD').toUpperCase()} •••• ${c.last4}`; }
+      else cardEl.textContent='No card on file.';
+    }
+    if(renewEl){ renewEl.textContent = d.active && d.renews_at ? `Renews on ${new Date(d.renews_at*1000).toLocaleDateString()}` : ''; }
+    if(String(d.plan||'none').toUpperCase()==='PRO'){ setPlan('PRO'); }
+  }catch(e){ console.warn('loadBillingFacts error', e); }
+}
+function closePlans(){ hide(document.getElementById('plans')); }
+function openAccount(){
+  const u=auth.currentUser; if(!u) return openLogin('Login');
+  document.getElementById('acctAvatar').textContent=(u.displayName||u.email||'U').slice(0,1).toUpperCase();
+  document.getElementById('acctName').textContent=u.displayName||'User';
+  document.getElementById('acctEmail').textContent=u.email||'—';
+  document.getElementById('acctPlan').textContent=`Plan: ${getPlan()}`;
+  document.getElementById('acctCredits').textContent=`Credits: ${getPlan()==='NONE'?getCredits()+"/3":"∞"}`;
+  show(document.getElementById('account'));
+}
+function closeAccount(){ hide(document.getElementById('account')); }
+function confirmLogout(){ show(document.getElementById('logoutConfirm')); }
+function closeLogoutConfirm(){ hide(document.getElementById('logoutConfirm')); }
+function openCancel(){ show(document.getElementById('cancelConfirm')); }
+function closeCancel(){ hide(document.getElementById('cancelConfirm')); }
+
+/* ---------- Per-user local state ---------- */
+function planKey(uid){return `plan:${uid}`}
+function creditsKey(uid){return `credits:${uid}`}
+function resetKey(uid){return `creditsResetAt:${uid}`}
+
+function ensureUserState(uid){
+  if(!localStorage.getItem(planKey(uid))) localStorage.setItem(planKey(uid),'NONE');
+  if(!localStorage.getItem(creditsKey(uid))) localStorage.setItem(creditsKey(uid),'3');
+  let r=localStorage.getItem(resetKey(uid));
+  if(!r){ localStorage.setItem(resetKey(uid), new Date(Date.now()+7*864e5).toISOString()); }
+  else if(Date.now()>Date.parse(r)){ localStorage.setItem(creditsKey(uid),'3'); localStorage.setItem(resetKey(uid), new Date(Date.now()+7*864e5).toISOString()); }
+}
+function getPlan(){ const u=auth.currentUser; if(!u) return 'NONE'; return localStorage.getItem(planKey(u.uid))||'NONE'; }
+function setPlan(p){ const u=auth.currentUser; if(!u) return; localStorage.setItem(planKey(u.uid), p); updateTop(); }
+function getCredits(){ const u=auth.currentUser; if(!u) return 0; return parseInt(localStorage.getItem(creditsKey(u.uid))||'3',10); }
+function spendCredit(){ if(getPlan()!=='NONE') return; const u=auth.currentUser; if(!u) return; const c=Math.max(0, getCredits()-1); localStorage.setItem(creditsKey(u.uid), String(c)); updateTop(); }
+function canSpend(){ return getPlan()!=='NONE' || getCredits()>0; }
+
+function updateTop(){
+  const b=document.getElementById('planBadge'), c=document.getElementById('counter');
+  const p=getPlan();
+  b.innerHTML=`Current plan: <b>${p}</b>`;
+  c.textContent=p==='NONE'?`${getCredits()}/3`:'∞';
+  if(p==='NONE'){
+    const u=auth.currentUser;
+    if(u){
+      const resetAt = localStorage.getItem(resetKey(u.uid));
+      if(resetAt){
+        const ms = Date.parse(resetAt) - Date.now();
+        if(ms > 0){
+          const days = Math.floor(ms/86400000), hrs = Math.floor((ms%86400000)/3600000);
+          c.title = `Resets in ${days}d ${hrs}h`;
+        }
+      }
+    }
+  }
+}
+
+/* ---------- Welcome chip ---------- */
+function welcome(){
+  const u=auth.currentUser; if(!u) return;
+  const chip=document.getElementById('welcomeChip');
+  chip.textContent=`Welcome, ${(u.displayName||u.email||'User')}`; chip.style.display='inline-block'; setTimeout(()=>{chip.style.display='none'}, 5000);
+  const modal = document.getElementById('welcomeModal');
+  document.getElementById('welcomeMsg').textContent = `Welcome, ${(u.displayName||u.email||'User')}!`;
+  show(modal);
+  setTimeout(()=>{ hide(modal); }, 2200);
+}
+
+/* ---------- AUTH + HISTORY (messages array) ---------- */
+let currentUserId = null;
+let currentChatId = null;
+
+function userChatsCol(uid){
+  return db.collection('users').doc(uid).collection('chats');
+}
+
+let historyUnsub = null;
+function subscribeHistory(uid){
+  if (historyUnsub) { try{ historyUnsub(); }catch{} }
+  historyUnsub = userChatsCol(uid)
+    .orderBy('updatedAt', 'desc')
+    .limit(50)
+    .onSnapshot((snap)=>{
+      const chats = [];
+      snap.forEach(doc => chats.push({ id: doc.id, ...doc.data() }));
+      renderHistoryList(chats);
+    }, (err)=>{
+      console.warn('history listener error', err);
+    });
+}
+
+function closeHistoryMenus(){
+  document.querySelectorAll('.history-popup.show').forEach(p=>p.classList.remove('show'));
+}
+
+function renderHistoryList(chats){
+  const ul = document.getElementById('historyList');
+  if(!ul) return;
+  ul.innerHTML = '';
+
+  // New Chat
+  const liNew = document.createElement('li');
+  liNew.className='history-item';
+  liNew.innerHTML = '<span style="flex:1">+ New Chat</span>';
+  liNew.onclick = newChat;
+  ul.appendChild(liNew);
+
+  chats.forEach(c=>{
+    const li = document.createElement('li');
+    li.className='history-item';
+    li.dataset.id = c.id;
+
+    const title = document.createElement('span');
+    title.style.flex='1';
+    title.style.overflow='hidden';
+    title.style.textOverflow='ellipsis';
+    title.style.whiteSpace='nowrap';
+    title.textContent = c.title || 'Untitled';
+
+    const dots = document.createElement('span');
+    dots.className='history-dots';
+    dots.textContent='•••';
+
+    const menu = document.createElement('div');
+    menu.className='history-popup';
+    menu.innerHTML = `
+      <div data-act="rename">Rename</div>
+      <div data-act="delete" class="delete">Delete</div>
+    `;
+
+    dots.onclick = (e)=>{
+      e.stopPropagation();
+      const open = menu.classList.contains('show');
+      closeHistoryMenus();
+      if(!open) menu.classList.add('show');
     };
-    firebase.initializeApp(firebaseConfig);
-    const auth = firebase.auth();
-    const db   = firebase.firestore();
 
-    // FastAPI base (main.py). If served same origin, leave blank.
-    const API_BASE = "/api";
+    menu.onclick = async (e)=>{
+      e.stopPropagation();
+      const act = e.target.getAttribute('data-act');
+      if(!act) return;
+      menu.classList.remove('show');
 
-    // Stripe publishable key (legacy constant — retained to avoid breaking anything)
-    const STRIPE_PUBLISHABLE_KEY = 'pk_live_xxx_REPLACE_ME';
+      if(act==='delete'){
+        if(!confirm('Delete this chat?')) return;
+        try{
+          await userChatsCol(currentUserId).doc(c.id).delete();
+          if(currentChatId===c.id){
+            currentChatId=null;
+            document.getElementById('msgs').innerHTML='';
+          }
+        }catch(err){
+          console.warn(err); toast('Delete failed');
+        }
+      } else if(act==='rename'){
+        const current = c.title || 'Untitled';
+        const nn = prompt('New title:', current);
+        if(!nn) return;
+        const newTitle = nn.trim().slice(0,80);
+        if(!newTitle || newTitle===current) return;
+        try{
+          await userChatsCol(currentUserId).doc(c.id).set({
+            title:newTitle,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+          }, { merge:true });
+        }catch(err){
+          console.warn(err); toast('Rename failed');
+        }
+      }
+    };
 
-    const STREAM_TIMEOUT_MS = 60_000;
+    li.onclick = (e)=>{
+      if(e.target===dots || menu.contains(e.target)) return;
+      loadChat(c.id);
+      if(window.innerWidth < 900){
+        document.getElementById('side').classList.remove('show');
+        document.body.classList.remove('sidebar-open');
+      }
+    };
 
+    li.appendChild(title);
+    li.appendChild(dots);
+    li.appendChild(menu);
+    ul.appendChild(li);
+  });
+}
 
-    const API_BASE = ""; // same-origin (Vercel API lives under /api)
-    // FirebaseUI instance (lazy)
-    let ui = null;
-    let postLoginAction = null;
+// outside click / esc to close
+document.addEventListener('click', (e)=>{
+  if(!e.target.closest('.history-popup') && !e.target.closest('.history-dots')){
+    closeHistoryMenus();
+  }
+});
+document.addEventListener('keydown', (e)=>{
+  if(e.key==='Escape') closeHistoryMenus();
+});
 
-    /* ========= Billing facts ========= */
-    async function loadBillingFacts(){
-      const u = auth.currentUser;
-      if(!u){ return; }
+/* ---------- CHAT MESSAGE HANDLING ---------- */
+async function loadChat(chatId){
+  if(!currentUserId) return;
+  currentChatId = chatId;
+  const doc = await userChatsCol(currentUserId).doc(chatId).get();
+  const data = doc.data() || {};
+  const msgs = Array.isArray(data.messages) ? data.messages : [];
+  const pane = document.getElementById('msgs');
+  pane.innerHTML = '';
+  msgs.forEach(m => appendBubble(m.role, m.content));
+  // show chat view/input if coming from landing
+  document.getElementById('landing').style.display='none';
+  document.getElementById('chat').style.display='flex';
+  document.getElementById('input').style.display='block';
+  scrollToBottom();
+}
 
-      const res = await fetch('/billing/status', {
+function newChat(){
+  currentChatId = null;
+  document.getElementById('msgs').innerHTML='';
+  toast('New chat');
+}
+
+function appendBubble(role, text){
+  const pane = document.getElementById('msgs');
+  const div = document.createElement('div');
+  div.className = role === 'user' ? 'bubble user' : 'bubble bot';
+  div.innerHTML = role === 'user' ? escapeHtml(String(text||'')) : md(String(text||''));
+  pane.appendChild(div);
+}
+
+function scrollToBottom(){ const pane=document.getElementById('msgs'); pane.scrollTop=pane.scrollHeight; }
+
+/* ---------- Markdown helpers ---------- */
+function escapeHtml(t){ const d=document.createElement('div'); d.textContent=t; return d.innerHTML; }
+function md(s){
+  s = s.replace(/^### (.*)$/gm, '<h3>$1</h3>');
+  s = s.replace(/^## (.*)$/gm, '<h2>$1</h2>');
+  s = s.replace(/^# (.*)$/gm, '<h1>$1</h1>');
+  s = s.replace(/```([\s\S]*?)```/g,(_,c)=>'<pre><code>'+escapeHtml(c)+'</code></pre>');
+  s = s.replace(/`([^`]+)`/g,(_,c)=>'<code>'+escapeHtml(c)+'</code>');
+  s = s.replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>');
+  s = s.replace(/\*([^*]+)\*/g,'<em>$1</em>');
+  return s.split(/\n{2,}/).map(ch=>/^</.test(ch.trim())?ch:`<p>${ch.replace(/\n/g,'<br>')}</p>`).join('\n');
+}
+
+function typeOutAnswer(el, full){
+  const chars = [...String(full||'')];
+  if(!chars.length){ el.innerHTML='[no answer]'; return; }
+  let i=0, buffer='';
+
+  function liveRender(){
+    const txt = buffer;
+    // count code fences
+    const fences = (txt.match(/```/g)||[]).length;
+    if(fences % 2 === 1){
+      // inside an unfinished code block
+      const openIdx = txt.lastIndexOf('```');
+      const closedPart = txt.slice(0, openIdx);
+      const openPart = txt.slice(openIdx + 3);
+      el.innerHTML = md(closedPart) + '<pre><code>'+escapeHtml(openPart)+'</code></pre>';
+    } else {
+      el.innerHTML = md(txt);
+    }
+    scrollToBottom();
+  }
+
+  function step(){
+    if(i < chars.length){
+      buffer += chars[i++];
+      // render on every char that ends a word-ish unit or every few chars
+      if(i % 2 === 1 || /[\s\.\!\?]/.test(buffer[buffer.length-1])){
+        liveRender();
+      }
+      setTimeout(step, 15); // typing speed
+    } else {
+      liveRender(); // final render (ensures full markdown)
+    }
+  }
+  step();
+}
+
+/* ---------- Uploads (unchanged UI; expects /api/upload) ---------- */
+const attachBar=document.getElementById('attachBar'); const fileInput=document.getElementById('fileInput');
+let selectedNames=[]; let uploaded=[];
+
+function refreshAttach(){
+  attachBar.innerHTML=''; if(selectedNames.length===0){ attachBar.classList.remove('show'); return; }
+  selectedNames.forEach((nm,idx)=>{ const chip=document.createElement('span'); chip.className='chip'; chip.textContent=nm; const x=document.createElement('span'); x.className='x'; x.textContent='✖'; x.onclick=()=>{ selectedNames.splice(idx,1); uploaded = uploaded.filter(f=>f.name!==nm); refreshAttach(); }; chip.appendChild(x); attachBar.appendChild(chip); });
+  attachBar.classList.add('show');
+}
+fileInput.addEventListener('change', async (e)=>{
+  const files=Array.from(e.target.files||[]); if(!files.length) return;
+  const room=Math.max(0, 10-selectedNames.length);
+  const take=files.slice(0,room);
+  selectedNames.push(...take.map(f=>f.name)); refreshAttach();
+  try{
+    const form=new FormData(); take.forEach(f=>form.append('files',f,f.name));
+    const u=auth.currentUser; const headers={}; if(u){ headers['X-User-Id']=u.uid; headers['X-User-Plan']=getPlan().toLowerCase(); }
+    const res=await fetch(`${API_BASE}/upload`,{method:'POST',body:form,headers});
+    const data=await res.json(); uploaded.push(...(data.files||[]));
+    (data.files||[]).forEach(f=>{
+      appendBubble('bot', `📄 <strong>${escapeHtml(f.name)}</strong> uploaded.`);
+    });
+    toast(`${(data.files||[]).length} file(s) ready`);
+  }catch{ toast('Upload failed'); } finally{ fileInput.value=''; }
+});
+
+/* ---------- SEND MESSAGE: create chat on first message ---------- */
+async function ask(){
+  const u=auth.currentUser;
+  if(!u){ openLogin('Login required'); return; }
+  if(getPlan()==='NONE' && getCredits()<=0){
+    toast('Free weekly limit reached');
+    openPlansPopup();
+    setTimeout(()=>{ document.getElementById('plans').focus(); }, 200);
+    return;
+  }
+  const qEl=document.getElementById('q');
+  const text=(qEl.value||'').trim();
+  if(!text) return;
+
+  // UI: show chat view
+  document.getElementById('landing').style.display='none';
+  document.getElementById('chat').style.display='flex';
+  document.getElementById('input').style.display='block';
+
+  qEl.value='';
+  const sendBtn=document.getElementById('sendBtn'); sendBtn.disabled=true;
+
+  appendBubble('user', text);
+  if(selectedNames.length){
+    appendBubble('bot', `<strong>Attachments:</strong><ul>${selectedNames.map(n=>`<li>${escapeHtml(n)}</li>`).join('')}</ul>`);
+  }
+
+  const headers={'Content-Type':'application/json','X-User-Id':u.uid};
+  const payload={ question: text };
+  if (currentChatId) payload.chatId = currentChatId;
+  if (uploaded.length) payload.files = uploaded.slice(0,10);
+
+  const botElId=`m${Date.now()}`;
+  const streamEl = document.createElement('div');
+  streamEl.className='bubble bot streaming';
+  streamEl.id = botElId;
+  streamEl.innerHTML = '<span class="dot"></span>';
+  document.getElementById('msgs').appendChild(streamEl);
+  scrollToBottom();
+
+  try{
+    const ctl=new AbortController();
+    const t=setTimeout(()=>ctl.abort(), STREAM_TIMEOUT_MS);
+    const r=await fetch(`${API_BASE}/ask`,{method:'POST',headers,body:JSON.stringify(payload),signal:ctl.signal});
+    clearTimeout(t);
+
+    const data = await r.json().catch(()=>({ error:'Invalid JSON' }));
+    if(!r.ok){
+      streamEl.classList.remove('streaming');
+      streamEl.textContent = data && data.error ? data.error : `Server error (${r.status})`;
+      toast('Backend error');
+      return;
+    }
+
+    // On first message, backend returns the new chatId
+    if(!currentChatId && data.chatId){ currentChatId = data.chatId; }
+
+    // render assistant with typing
+    streamEl.classList.remove('streaming');
+    streamEl.innerHTML='';            // clear spinner
+    typeOutAnswer(streamEl, data.answer||'[no answer]');
+    scrollToBottom();
+
+    // update credits for free plan
+    if(getPlan()==='NONE'){ spendCredit(); }
+
+  }catch(err){
+    console.error('ask error', err);
+    streamEl.classList.remove('streaming');
+    streamEl.textContent='Network/timeout when calling /api/ask';
+    toast('Network error');
+  }finally{
+    selectedNames=[]; uploaded=[]; refreshAttach();
+    sendBtn.disabled=false;
+  }
+}
+
+/* ---------- Stripe Billing ---------- */
+async function cancelSub(){
+  const u=auth.currentUser; if(!u) return;
+  const r=await fetch(`${API_BASE}/billing/cancel`,{
+    method:'POST',
+    headers:{'Content-Type':'application/json','X-User-Id':u.uid,'X-User-Email':u.email||''}
+  });
+  if(!r.ok){
+    const d=await r.json().catch(()=>({})); 
+    document.getElementById('billMsg').textContent = d.detail || 'Cancel failed.';
+  }else{
+    document.getElementById('billMsg').textContent='Will cancel at period end.';
+  }
+  closeCancel();
+  await loadBillingFacts();
+}
+
+/* ---------- Auth helpers ---------- */
+function ensureSignedIn(fn){ if(auth.currentUser) fn(); else openLogin('Login required'); }
+async function doLogout(){ closeLogoutConfirm(); try{ await auth.signOut(); }catch{} document.getElementById('msgs').innerHTML=''; currentChatId=null; renderHistoryList([]); updateTop(); toast('Logged out'); }
+
+/* ---------- Welcome chip on first load ---------- */
+updateTop();
+
+/* ---------- Auth state to wire history ---------- */
+auth.onAuthStateChanged(async (u)=>{
+  if(u){
+    currentUserId = u.uid;
+    ensureUserState(u.uid);
+    updateTop(); welcome();
+    subscribeHistory(u.uid);
+  }else{
+    currentUserId = null;
+    currentChatId = null;
+    document.getElementById('historyList').innerHTML='';
+    updateTop();
+  }
+});
+
+/* ---------- Wire send button + Enter key ---------- */
+document.getElementById('sendBtn').addEventListener('click', ask);
+document.getElementById('q').addEventListener('keydown', (e)=>{
+  if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); ask(); }
+});
+</script>
+
+<script>
+// Stripe purchase flow (no redirect)
+let stripe, elements, paymentEl, clientSecret, paymentIntentId;
+const btn = document.getElementById('purchaseBtn');
+const msg = document.getElementById('billingMsg');
+
+function toastBilling(t,bad=false){
+  if(msg){ msg.textContent=t; msg.style.color = bad? '#ff6b6b':'#6be07a'; }
+}
+function busy(b, text){
+  if(btn){
+    btn.disabled = b;
+    btn.textContent = b ? (text || 'Processing…') : 'Subscribe';
+  }
+}
+
+async function initStripeClient(){
+  try{
+    const cfg = await (await fetch('/api/billing/config')).json();
+    if(!cfg.publishableKey) throw new Error('Missing publishable key');
+    stripe = Stripe(cfg.publishableKey);
+    // create intent (needs user headers for metadata)
+    const u = firebase.auth().currentUser;
+    if(!u){ toastBilling('Login required', true); return; }
+
+    const subResp = await fetch('/api/billing/subscribe',{
+      method:'POST',
+      headers:{
+        'X-User-Id': u.uid,
+        'X-User-Email': u.email || ''
+      }
+    });
+
+    const raw = await subResp.text();
+    let sub;
+    try{
+      sub = JSON.parse(raw);
+    }catch(parseErr){
+      toastBilling('Error: ' + raw, true);
+      return;
+    }
+
+    if(!subResp.ok){
+      toastBilling(sub.error || 'Subscription init failed', true);
+      return;
+    }
+    if(!sub.clientSecret){
+      toastBilling('No clientSecret returned', true);
+      return;
+    }
+
+    clientSecret = sub.clientSecret;
+    paymentIntentId = sub.paymentIntentId;
+    elements = stripe.elements({ clientSecret });
+    paymentEl = elements.create('payment');
+    paymentEl.mount('#payment-element');
+    btn.removeEventListener('click', onPurchaseStripe);
+    btn.addEventListener('click', onPurchaseStripe);
+    toastBilling('Enter card then press Subscribe.');
+  }catch(e){
+    console.error(e);
+    toastBilling(e.message || 'Stripe init failed', true);
+  }
+}
+
+async function onPurchaseStripe(){
+  busy(true,'Confirming…');
+  try{
+    await elements.submit(); // validate fields
+    const { error } = await stripe.confirmPayment({
+      elements,
+      clientSecret,
+      redirect: 'if_required'
+    });
+    if (error) throw error;
+
+    // Activate plan server-side
+    const u = firebase.auth().currentUser;
+    if(u){
+      const act = await fetch('/api/billing/activate',{
         method:'POST',
-        headers: {
+        headers:{
           'Content-Type':'application/json',
           'X-User-Id': u.uid,
           'X-User-Email': u.email || ''
-        }
+        },
+        body: JSON.stringify({ paymentIntentId })
       });
-      if(!res.ok){
-        document.getElementById('pf-email').textContent = '—';
-        document.getElementById('pf-card').textContent  = '—';
-        document.getElementById('pf-renew').textContent = '';
-        return;
-      }
-      const data = await res.json();
-
-      // Email
-      document.getElementById('pf-email').textContent = data.email ? `Signed in as: ${data.email}` : '';
-
-      // Card line
-      const pm = data.default_payment_method;
-      if(pm){
-        document.getElementById('pf-card').textContent =
-          `Default payment method: ${pm.brand?.toUpperCase() || 'CARD'} •••• ${pm.last4} (exp ${pm.exp_month}/${String(pm.exp_year).slice(-2)})`;
-      }else{
-        document.getElementById('pf-card').textContent = 'No card on file yet.';
-      }
-
-      // Renewal / status
-      if(data.active && data.renews_at){
-        const dt = new Date(data.renews_at);
-        document.getElementById('pf-renew').textContent = `Renews on ${dt.toLocaleDateString()} (${data.price?.interval || 'month'})`;
-      }else{
-        document.getElementById('pf-renew').textContent = 'Not subscribed.';
-      }
-
-      // Button label (cosmetic)
-      const btn = document.getElementById('startSubBtn');
-      if (data.price?.unit_amount && data.price?.currency){
-        const dollars = (data.price.unit_amount / 100).toFixed(2);
-        const per = data.price.interval === 'year' ? '/yr' : '/mo';
-        btn.textContent = `Subscribe — $${dollars}${per}`;
-      }
+      const actData = await act.json();
+      if(!act.ok) throw new Error(actData.error || 'Activation failed');
+      // Update local plan immediately
+      setPlan('PRO');
+      toastBilling('Payment complete. Pro unlocked 🎉');
+      updateTop();
+      loadBillingFacts().catch(()=>{});
+    } else {
+      toastBilling('Reload after login.', true);
     }
-
-    /***********************
-     * Sanitizer + Markdown
-     ***********************/
-    function sanitizeHTML(html){
-      const div = document.createElement('div');
-      div.innerHTML = html;
-      div.querySelectorAll('script,style,link,iframe,object,embed,noscript,template').forEach(n=>n.remove());
-      div.querySelectorAll('*').forEach(el=>{
-        for (const a of Array.from(el.attributes)){
-          const name = a.name.toLowerCase();
-          const val  = a.value || '';
-          if (name.startsWith('on')) el.removeAttribute(a.name);
-          if ((name === 'href' || name === 'src') && /^\s*javascript:/i.test(val)) el.removeAttribute(a.name);
-          if (name === 'srcdoc') el.removeAttribute(a.name);
-        }
-      });
-      return div.innerHTML;
-    }
-
-    function escapeHTML(txt){ const div=document.createElement('div'); div.textContent=txt; return div.innerHTML; }
-
-    function renderMarkdown(src){
-      let s = String(src || '');
-
-      // code block
-      s = s.replace(/```([\s\S]*?)```/g, (_,code)=>'<pre><code>'+escapeHTML(code)+'</code></pre>');
-      // inline code
-      s = s.replace(/`([^`]+)`/g, (_,code)=>'<code>'+escapeHTML(code)+'</code>');
-
-      // headings
-      s = s.replace(/^\s*######\s*(.+)$/gm,'<h6>$1</h6>');
-      s = s.replace(/^\s*#####\s*(.+)$/gm,'<h5>$1</h5>');
-      s = s.replace(/^\s*####\s*(.+)$/gm,'<h4>$1</h4>');
-      s = s.replace(/^\s*###\s*(.+)$/gm,'<h3>$1</h3>');
-      s = s.replace(/^\s*##\s*(.+)$/gm,'<h2>$1</h2>');
-      s = s.replace(/^\s*#\s*(.+)$/gm,'<h1>$1</h1>');
-
-      // ***bold+italic***, **bold**, *italic*
-      s = s.replace(/\*\*\*([\s\S]+?)\*\*\*/g, '<strong><em>$1</em></strong>');
-      s = s.replace(/\*\*([\s\S]+?)\*\*/g,     '<strong>$1</strong>');
-      s = s.replace(/(^|[^*])\*([\s\S]+?)\*(?!\*)/g, '$1<em>$2</em>');
-
-      // unordered lists
-      s = s.replace(/(?:^|\n)([-*]\s.+(?:\n[-*]\s.+)*)/g, (m)=>{
-        const items = m.trim().split(/\n/)
-          .map(line=>line.replace(/^[-*]\s+/, ''))
-          .map(it=>'<li>'+escapeHTML(it)+'</li>').join('');
-        return '\n<ul>'+items+'</ul>';
-      });
-
-      // paragraphize
-      const blocks = s.split(/\n{2,}/).map(chunk=>{
-        const t = chunk.trim();
-        const isBlock = /^<(h\d|ul|ol|li|pre|code|blockquote|p|table|thead|tbody|tr|td|th)\b/i.test(t);
-        if (isBlock) return t;
-        return '<p>'+t.replace(/\n/g,'<br>')+'</p>';
-      }).join('\n');
-
-      return sanitizeHTML(blocks);
-    }
-
-    /***********************
-     * UI helpers
-     ***********************/
-    function toast(msg, ms=2200){
-      const t = document.getElementById('toast');
-      t.textContent = msg; t.style.display='block';
-      setTimeout(()=>{t.style.display='none'}, ms);
-    }
-    function getWeekResetISO(){ const now=new Date(); const r=new Date(now); r.setDate(now.getDate()+7); return r.toISOString(); }
-
-    /***********************
-     * Plan/Credits local
-     ***********************/
-    function planKey(uid){return `plan:${uid}`}
-    function creditsKey(uid){return `credits:${uid}`}
-    function resetKey(uid){return `creditsResetAt:${uid}`}
-    function ensureUserState(uid){
-      if(!localStorage.getItem(planKey(uid))) localStorage.setItem(planKey(uid),'NONE');
-      if(!localStorage.getItem(creditsKey(uid))) localStorage.setItem(creditsKey(uid),'3');
-      let resetAt = localStorage.getItem(resetKey(uid));
-      if(!resetAt){ localStorage.setItem(resetKey(uid), getWeekResetISO()); }
-      else{
-        const now = new Date();
-        if(now > new Date(resetAt)){
-          localStorage.setItem(creditsKey(uid),'3');
-          localStorage.setItem(resetKey(uid), getWeekResetISO());
-        }
-      }
-    }
-    function updateTopBar(){
-      const badge = document.getElementById('planBadge');
-      const counter = document.getElementById('counter');
-      const btn = document.getElementById('loginBtn');
-      const user = auth.currentUser;
-      if(!user){
-        badge.innerHTML = 'Current plan: <b>NONE</b>';
-        counter.textContent = '3/3';
-        btn.textContent = 'Login';
-        return;
-      }
-      ensureUserState(user.uid);
-      const plan = localStorage.getItem(planKey(user.uid)) || 'NONE';
-      const credits = parseInt(localStorage.getItem(creditsKey(user.uid) ) || '3', 10);
-      badge.innerHTML = `Current plan: <b>${plan}</b>`;
-      counter.textContent = plan==='NONE' ? `${credits}/3` : '∞';
-      btn.textContent = 'Logout';
-    }
-    window.updateTopBar = updateTopBar;
-
-    /***********************
-     * Account modal
-     ***********************/
-    function openAccount(){
-      const m = document.getElementById('accountModal');
-      const u = auth.currentUser;
-      const name = u?.displayName || 'User';
-      const email = u?.email || '—';
-      const plan = u ? (localStorage.getItem(planKey(u.uid)) || 'NONE') : 'NONE';
-      const credits = u ? (localStorage.getItem(creditsKey(u.uid)) || '3') : '3';
-      document.getElementById('acctAvatar').textContent = (name||'U').slice(0,1).toUpperCase();
-      document.getElementById('acctName').textContent   = name;
-      document.getElementById('acctEmail').textContent  = email;
-      document.getElementById('acctPlan').textContent   = `Plan: ${plan}`;
-      document.getElementById('acctCredits').textContent= `Credits: ${plan==='NONE'? `${credits}/3` : '∞'}`;
-      m.style.display = 'flex';
-    }
-    function closeAccount(){ document.getElementById('accountModal').style.display='none' }
-
-    /***********************
-     * Chat state
-     ***********************/
-    let savedChats = []; let currentChatTitle = null;
-    const LOCAL_CACHE_KEY = "regpt_local_chats_v1";
-    function cacheChatsLocally(){ try{ localStorage.setItem(LOCAL_CACHE_KEY, JSON.stringify(savedChats)); }catch{} }
-    function loadLocalCache(){ try{ const raw=localStorage.getItem(LOCAL_CACHE_KEY); if(raw) savedChats=JSON.parse(raw); }catch{ savedChats=[] } }
-    loadLocalCache();
-
-    async function loadChatsForUser(uid){
-      savedChats = [];
-      try{
-        const col = await db.collection("users").doc(uid).collection("chats").orderBy("updatedAt","desc").get();
-        col.forEach(doc=>{
-          const d = doc.data();
-          savedChats.push({
-            id: doc.id, title: d.title, html: d.html || "",
-            updatedAt: d.updatedAt?.toMillis ? d.updatedAt.toMillis() : Date.now()
-          });
-        });
-        cacheChatsLocally();
-      }catch(e){ console.warn("loadChatsForUser failed:", e); loadLocalCache(); }
-    }
-    async function persistChatToCloud(chat){
-      cacheChatsLocally();
-      if(!auth.currentUser) return;
-      try{
-        const uid = auth.currentUser.uid;
-        const id = chat.id || db.collection("_ids").doc().id;
-        chat.id = id;
-        await db.collection("users").doc(uid).collection("chats").doc(id)
-          .set({ title: chat.title, html: chat.html || "", updatedAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge:true });
-      }catch(e){ console.warn("persistChatToCloud failed:", e); }
-    }
-    async function deleteChatCloud(chat){
-      if(!auth.currentUser || !chat.id) return;
-      try{
-        await db.collection("users").doc(auth.currentUser.uid).collection("chats").doc(chat.id).delete();
-      }catch(e){ console.warn("deleteChatCloud", e); }
-    }
-
-    /***********************
-     * Auth watches
-     ***********************/
-    auth.onAuthStateChanged(async (user)=>{
-      updateTopBar();
-
-
-
-// ——— Stripe state ———
-let stripePK = null;
-let stripe = null;
-let elements = null;
-let paymentElement = null;
-let activePiClientSecret = null;  // for subscribe flow
-
-async function ensureStripe() {
-  if (stripe) return stripe;
-  try {
-    const r = await fetch('/billing/config');
-    if (r.ok) {
-      const cfg = await r.json();
-      stripePK = cfg.publishable_key;
-    }
-  } catch {}
-  if (!stripePK && typeof STRIPE_PUBLISHABLE_KEY !== 'undefined') stripePK = STRIPE_PUBLISHABLE_KEY;
-  if (!stripePK || !stripePK.startsWith('pk_')) {
-    document.getElementById('billMsg').textContent = 'Stripe publishable key missing.';
-    throw new Error('No publishable key');
+    busy(false);
+  }catch(e){
+    console.error(e);
+    toastBilling(e.message || 'Stripe error', true);
+    busy(false);
   }
-  stripe = Stripe(stripePK);
-  return stripe;
 }
 
-function mountPaymentElement(clientSecret) {
-  if (!stripe) return;
-  if (paymentElement) { try { paymentElement.unmount(); } catch{} }
-  elements = stripe.elements({ clientSecret, appearance: { theme: 'night' } });
-  paymentElement = elements.create('payment');
-  paymentElement.mount('#card-element');
-  document.getElementById('cardWrap').style.display = 'block';
-}
-
-function bumpLocalPlanToPro(){
-  const u = auth.currentUser; if(!u) return;
-  try {
-    localStorage.setItem(`plan:${u.uid}`,'PRO');
-    localStorage.setItem(`credits:${u.uid}`,'9999');
-  } catch{}
-  updateTopBar();
-}
-
-/* -------- Add / Update Card (SetupIntent) -------- */
-async function showAddOrUpdateCard(){
-  const u = auth.currentUser;
-  if(!u){ openLoginModal('Login required'); return; }
-  await ensureStripe();
-
-  const r = await fetch('/billing/create-setup-intent', {
-    method:'POST',
-    headers:{
-      'Content-Type':'application/json',
-      'X-User-Id': u.uid,
-      'X-User-Email': u.email || ''
-    }
-  });
-  const si = await r.json();
-  if(!r.ok || !si.client_secret){
-    document.getElementById('billMsg').textContent = si.detail || si.error || 'Could not start card setup.';
-    return;
-  }
-
-  mountPaymentElement(si.client_secret);
-
-  // Wire "Save card" click for this specific SI
-  const saveBtn = document.getElementById('confirmCardBtn');
-  saveBtn.onclick = async ()=>{
-    const { error, setupIntent } = await stripe.confirmSetup({
-      elements,
-      clientSecret: si.client_secret,
-      redirect: 'if_required'
-    });
-    if(error){
-      document.getElementById('billMsg').textContent = error.message || 'Card save failed.';
-      return;
-    }
-    // Success
-    document.getElementById('cardWrap').style.display = 'none';
-    document.getElementById('billMsg').textContent = 'Card saved.';
-    await loadBillingFacts();
-  };
-}
-
-/* -------- Subscribe (PaymentIntent) --------
-   First click: creates sub & usually returns PI client_secret -> show card form.
-   Second click (same button): confirms PI and finishes.
-*/
-async function startOrConfirmSubscription(){
-  const u = auth.currentUser;
-  if(!u){ openLoginModal('Login required'); return; }
-  await ensureStripe();
-
-  // If we already have a PI client_secret mounted, confirm now
-  if (activePiClientSecret) {
-    const { error, paymentIntent } = await stripe.confirmPayment({
-      elements,
-      clientSecret: activePiClientSecret,
-      redirect: 'if_required'
-    });
-    if (error) {
-      document.getElementById('billMsg').textContent = error.message || 'Payment confirmation failed.';
-      return;
-    }
-    // success
-    activePiClientSecret = null;
-    document.getElementById('cardWrap').style.display = 'none';
-    document.getElementById('billMsg').textContent = 'Subscription active.';
-    await loadBillingFacts();
-    return;
-  }
-
-  // First click: ask server to create/update subscription
-  const r = await fetch('/billing/subscribe', {
-    method:'POST',
-    headers:{
-      'Content-Type':'application/json',
-      'X-User-Id': u.uid,
-      'X-User-Email': u.email || ''
-    }
-  });
-  const data = await r.json();
-  if(!r.ok){
-    document.getElementById('billMsg').textContent = data.detail || data.error || 'Subscribe failed.';
-    return;
-  }
-
-  if (data.client_secret) {
-    // Need user to enter card details now; mount payment element
-    activePiClientSecret = data.client_secret;
-    mountPaymentElement(activePiClientSecret);
-    document.getElementById('billMsg').textContent = 'Enter card, then click “Subscribe” again to confirm.';
-    return;
-  }
-
-  // No further action needed (default card on file & PI auto-succeeded)
-  document.getElementById('billMsg').textContent = 'Subscription active.';
-  
-  await loadBillingFacts();
-}
-
-/* -------- Cancel flow (tiny link + confirm modal) -------- */
-function openCancelConfirm(){ document.getElementById('cancelConfirmModal').style.display='flex'; }
-function closeCancelConfirm(){ document.getElementById('cancelConfirmModal').style.display='none'; }
-
-async function cancelSubscription(){
-  const u = auth.currentUser;
-  if(!u){ closeCancelConfirm(); openLoginModal('Login required'); return; }
-  const res = await fetch('/billing/cancel', {
-    method:'POST',
-    headers:{
-      'Content-Type':'application/json',
-      'X-User-Id': u.uid,
-      'X-User-Email': u.email || ''
-    }
-  });
-  const data = await res.json();
-  if(!res.ok){
-    document.getElementById('billMsg').textContent = data.detail || 'Cancel failed.';
-    closeCancelConfirm();
-    return;
-  }
-  document.getElementById('billMsg').textContent = 'Will cancel at period end.';
-  closeCancelConfirm();
-  await loadBillingFacts();
-  updateTopBar();
-}
-
-/* -------- Wire buttons whenever Plans opens -------- */
-function wireBillingButtons(){
-  const addBtn = document.getElementById('addCardBtn');
-  const subBtn = document.getElementById('startSubBtn');
-  const cancelLink = document.getElementById('cancelSubLink');
-  const yes = document.getElementById('confirmCancelYes');
-  const no  = document.getElementById('confirmCancelNo');
-
-  if(addBtn && !addBtn._wired){ addBtn._wired=true; addBtn.onclick=showAddOrUpdateCard; }
-  if(subBtn && !subBtn._wired){ subBtn._wired=true; subBtn.onclick=startOrConfirmSubscription; }
-  if(cancelLink && !cancelLink._wired){ cancelLink._wired=true; cancelLink.onclick=openCancelConfirm; }
-  if(yes && !yes._wired){ yes._wired=true; yes.onclick=cancelSubscription; }
-  if(no  && !no._wired){  no._wired=true;  no.onclick=closeCancelConfirm; }
-}
-
-// Wrap your openPlansPopup to wire & refresh
-const _openPlansPopup = window.openPlansPopup;
+// Re-init Stripe each time plans modal opens (fresh intent if needed)
+const origOpenPlans = window.openPlansPopup;
 window.openPlansPopup = function(){
-  const run = async ()=>{
-    document.getElementById('plansPopup').style.display='flex';
-    wireBillingButtons();
-    await loadBillingFacts();
-  };
-  if(auth.currentUser){ run(); } else { window.postLoginAction = run; openLoginModal('Login required'); }
+  origOpenPlans && origOpenPlans();
+  setTimeout(()=>{ initStripeClient(); }, 100); // delay so modal is visible
 };
-
-
-
-      /* ===== After auth: load chats or reset ===== */
-      if(user){
-        await loadChatsForUser(user.uid);
-        updateChatList();
-        if(savedChats.length>0){
-          loadChat(savedChats[0].title);
-          document.getElementById("landing").style.display = "none";
-          document.getElementById("chatUI").style.display = "flex";
-          if (window.innerWidth >= 900){
-            document.getElementById("chatHistory").style.display = "flex";
-            document.body.classList.add('sidebar-open');
-          }
-        }
-        if(postLoginAction){ const fn=postLoginAction; postLoginAction=null; fn(); }
-
-        // Optional: if your backend mirrors plan into Firestore by uid
-        db.collection('users').doc(user.uid).onSnapshot(snap=>{
-          const plan = snap.data()?.plan || 'NONE';
-          localStorage.setItem(planKey(user.uid), plan);
-          if (plan !== 'NONE') localStorage.setItem(creditsKey(user.uid), '9999');
-          updateTopBar();
-        });
-      }else{
-        document.getElementById("chatHistory").classList.remove('show');
-        document.getElementById("chatHistory").style.display='none';
-        hardResetUI(false);
-      }
-    });
-
-    /***********************
-     * Login / Logout UX
-     ***********************/
-    function openLoginModal(title='Sign In'){
-      document.getElementById('loginTitle').textContent = title;
-      document.getElementById('loginModal').style.display = 'flex';
-      if(!ui){ ui = new firebaseui.auth.AuthUI(auth); }
-      auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(()=>{});
-      ui.start('#firebaseui-auth-container',{
-        signInFlow:'popup',
-        signInOptions:[ firebase.auth.GoogleAuthProvider.PROVIDER_ID ],
-        callbacks:{ signInSuccessWithAuthResult:()=>{ closeLogin(); return false; } }
-      });
-    }
-    function closeLogin(){ document.getElementById('loginModal').style.display = 'none'; if(ui) ui.reset(); }
-    function loginOrLogout(){ const user = auth.currentUser; if(user){ openAccount(); } else { openLoginModal('Login'); } }
-    function ensureSignedInThen(fn){ if(auth.currentUser){ fn(); } else { postLoginAction=fn; openLoginModal('Login required'); } }
-    function openPlansPopup(){ ensureSignedInThen(()=>{ document.getElementById('plansPopup').style.display='flex'; }); }
-    function closePlansPopup(){ document.getElementById('plansPopup').style.display='none' }
-    function confirmLogout(){ document.getElementById("logoutConfirmModal").style.display="flex" }
-    function closeLogoutConfirm(){ document.getElementById("logoutConfirmModal").style.display="none" }
-    async function doLogout(){ closeLogoutConfirm(); closeAccount(); try{ await auth.signOut(); }catch{} toast('Logged out.'); }
-
-    function hardResetUI(eraseLocal=false){
-      if(eraseLocal){
-        savedChats = []; currentChatTitle=null;
-        try{ localStorage.removeItem(LOCAL_CACHE_KEY); }catch{}
-      }
-      const msg = document.getElementById("messages");
-      if(msg) msg.innerHTML="";
-      document.getElementById("chatUI").style.display="none";
-      document.getElementById("landing").style.display="flex";
-      document.getElementById("chatHistory").style.display="none";
-      document.body.classList.remove('sidebar-open');
-      updateTopBar();
-      updateChatList();
-    }
-
-    /***********************
-     * Layout + history
-     ***********************/
-    function goHome(){
-      document.getElementById("chatUI").style.display = "none";
-      document.getElementById("landing").style.display = "flex";
-      document.getElementById("chatHistory").style.display = "none";
-      document.getElementById("chatHistory").classList.remove('show');
-      document.body.classList.remove('sidebar-open');
-    }
-    function startChat(){
-      document.getElementById("landing").style.display = "none";
-      document.getElementById("chatUI").style.display = "flex";
-      if (window.innerWidth >= 900){
-        document.getElementById("chatHistory").style.display = "flex";
-        document.body.classList.add('sidebar-open');
-      }
-    }
-    function toggleSidebar(){
-      const sidebar = document.getElementById("chatHistory");
-      const isVisible = window.getComputedStyle(sidebar).display !== "none";
-      if (window.innerWidth < 900){
-        if(isVisible){ sidebar.classList.remove('show'); sidebar.style.display='none'; }
-        else{ sidebar.style.display='flex'; sidebar.classList.add('show'); }
-        document.body.classList.toggle('sidebar-open', false);
-      }else{
-        sidebar.style.display = isVisible ? "none" : "flex";
-        document.body.classList.toggle('sidebar-open', !isVisible);
-      }
-    }
-
-    async function saveCurrentChat(title){
-      const chatHTML = document.getElementById("messages").innerHTML;
-      let chat = savedChats.find(c=>c.title===title);
-      if(chat){ chat.html = chatHTML; chat.updatedAt = Date.now(); }
-      else{ chat = { id:null, title, html:chatHTML, updatedAt:Date.now() }; savedChats.unshift(chat); }
-      updateChatList();
-      await persistChatToCloud(chat);
-    }
-    function updateChatList(){
-      const ul = document.getElementById('historyList');
-      Array.from(ul.children).slice(1).forEach(el=>ul.removeChild(el));
-      savedChats.forEach(c=>{
-        const li = document.createElement('li'); li.className='chat-item';
-        const title = document.createElement('span'); title.textContent=c.title; title.style.flex='1'; title.onclick=()=>loadChat(c.title);
-        const btn = document.createElement('span'); btn.className='chat-options-btn'; btn.textContent='⋯'; btn.onclick=(e)=>{e.stopPropagation(); toggleMenu(li)};
-        const menu = document.createElement('div'); menu.className='chat-options-menu';
-
-        const rename = document.createElement('div'); rename.textContent='Rename';
-        rename.onclick=async ()=>{ const nt=prompt('Rename chat:', c.title); if(nt && nt.trim()){ c.title=nt.trim(); c.updatedAt=Date.now(); updateChatList(); await persistChatToCloud(c); } };
-
-        const del = document.createElement('div'); del.textContent='Delete';
-        del.onclick=async ()=>{ savedChats=savedChats.filter(x=>x.title!==c.title); updateChatList(); cacheChatsLocally(); await deleteChatCloud(c); };
-
-        menu.appendChild(rename); menu.appendChild(del);
-        li.appendChild(title); li.appendChild(btn); li.appendChild(menu); ul.appendChild(li);
-      });
-      cacheChatsLocally();
-    }
-    function toggleMenu(item){
-      const menu = item.querySelector('.chat-options-menu');
-      document.querySelectorAll('.chat-options-menu').forEach(m=>m.classList.remove('show'));
-      if(menu) menu.classList.add('show');
-      document.addEventListener('click',()=>menu.classList.remove('show'),{once:true});
-    }
-    async function newChat(){
-      const existing = savedChats.find(c=>c.title===currentChatTitle);
-      if(currentChatTitle && !existing){ await saveCurrentChat(currentChatTitle); }
-      document.getElementById('messages').innerHTML='';
-      currentChatTitle=null;
-    }
-    function loadChat(title){
-      const found = savedChats.find(c=>c.title===title);
-      if(found){
-        document.getElementById('messages').innerHTML = found.html;
-        document.getElementById('chatUI').style.display='flex';
-        document.getElementById('landing').style.display='none';
-        if (window.innerWidth >= 900){
-          document.getElementById('chatHistory').style.display='flex';
-          document.body.classList.add('sidebar-open');
-        }
-        currentChatTitle = found.title;
-      }
-    }
-
-    /***********************
-     * Append bubbles & ask
-     ***********************/
-    function appendMessage(sender,text,id=null,{editable=false, streaming=false}={}){
-      const msg = document.createElement('div');
-      msg.className = `bubble ${sender}` + (streaming ? ' streaming empty' : '');
-      if(id) msg.id=id;
-      if(streaming){
-        const dot = document.createElement('span'); dot.className = 'pulsing-dot'; msg.appendChild(dot);
-      }else{
-        if(sender==='bot'){ msg.innerHTML = renderMarkdown(String(text||'')); }
-        else{ msg.textContent = text || ''; }
-      }
-
-      if(editable && sender==='user'){
-        msg.classList.add('editable-user');
-        const editBtn = document.createElement('span');
-        editBtn.className='edit-btn'; editBtn.title = 'Edit'; editBtn.textContent = '';
-        editBtn.onclick = ()=>{
-          const original = text || '';
-          msg.innerHTML = '';
-          const ta = document.createElement('textarea');
-          ta.value = original;
-          ta.style.cssText = "width:100%; min-width:240px; max-width:min(760px,80vw); background:#0f0f0f; color:#eee; border:1px solid #333; border-radius:8px; padding:10px; resize:vertical; min-height:70px";
-          const row = document.createElement('div');
-          row.style.cssText = "display:flex; gap:8px; margin-top:8px";
-          const cancel = document.createElement('button');
-          cancel.textContent = 'Cancel';
-          cancel.className='btn btn-dark';
-          const save = document.createElement('button');
-          save.textContent = 'Save & Resend';
-          save.className='btn btn-primary';
-
-          row.appendChild(cancel); row.appendChild(save);
-          msg.appendChild(ta); msg.appendChild(row);
-
-          cancel.onclick = ()=>{
-            msg.innerHTML = ''; msg.textContent = original;
-            const e = document.createElement('span'); e.className='edit-btn'; e.textContent='✎'; e.onclick=()=>editBtn.onclick();
-            msg.appendChild(e);
-            if(currentChatTitle){
-              const idx = savedChats.findIndex(c=>c.title===currentChatTitle);
-              if(idx!==-1){ savedChats[idx].html = document.getElementById('messages').innerHTML; persistChatToCloud(savedChats[idx]); }
-            }
-          };
-          save.onclick = ()=>{
-            const revised = ta.value.trim(); if(!revised) return;
-            msg.innerHTML=''; msg.textContent=revised;
-            const e = document.createElement('span'); e.className='edit-btn'; e.textContent='✎'; e.onclick=()=>editBtn.onclick();
-            msg.appendChild(e);
-            if(currentChatTitle){
-              const idx = savedChats.findIndex(c=>c.title===currentChatTitle);
-              if(idx!==-1){ savedChats[idx].html = document.getElementById('messages').innerHTML; persistChatToCloud(savedChats[idx]); }
-            }
-            ask(revised, id);
-          };
-        };
-        msg.appendChild(editBtn);
-      }
-
-      const box = document.getElementById('messages');
-      box.appendChild(msg);
-      box.scrollTop = box.scrollHeight;
-      return msg;
-    }
-
-    function decrementCreditIfNeeded(){
-      const user = auth.currentUser; if(!user) return false;
-      const plan = localStorage.getItem(planKey(user.uid))||'NONE';
-      if(plan!=='NONE') return true;
-      let credits = parseInt(localStorage.getItem(creditsKey(user.uid) )||'3',10);
-      if(credits<=0) return false;
-      credits -= 1;
-      localStorage.setItem(creditsKey(user.uid), String(credits));
-      updateTopBar();
-      return true;
-    }
-
-    /* Upload attachments */
-    const fileInput = document.getElementById('fileInput');
-    const attachBar = document.getElementById('attachBar');
-    let pendingFiles = [];  // [{id,name}]
-    let selectedLocalNames = []; // visual chips before server IDs
-
-    function refreshAttachBar(){
-      attachBar.innerHTML = '';
-      if(selectedLocalNames.length === 0){ attachBar.classList.remove('show'); return; }
-      selectedLocalNames.forEach((nm, idx)=>{
-        const chip = document.createElement('span');
-        chip.className = 'chip'; chip.textContent = nm;
-        const x = document.createElement('span');
-        x.className='x'; x.textContent='✖';
-        x.onclick = ()=>{
-          selectedLocalNames.splice(idx,1);
-          const pfIdx = pendingFiles.findIndex(f=>f.name===nm);
-          if (pfIdx!==-1) pendingFiles.splice(pfIdx,1);
-          refreshAttachBar();
-        };
-        chip.appendChild(x);
-        attachBar.appendChild(chip);
-      });
-      attachBar.classList.add('show');
-    }
-
-    fileInput.addEventListener('change', async (e)=>{
-      const files = Array.from(e.target.files||[]);
-      if(files.length===0) return;
-
-      const current = selectedLocalNames.length;
-      const addable = Math.max(0, 10 - current);
-      if(files.length > addable){ toast(`Max 10 attachments. Keeping ${addable} of ${files.length}.`); }
-      const take = files.slice(0, addable);
-      selectedLocalNames.push(...take.map(f=>f.name));
-      refreshAttachBar();
-
-      try{
-        const form = new FormData();
-        take.forEach(f=>form.append('files', f, f.name));
-        const headers = {};
-        const u = auth.currentUser;
-        if(u){ headers['X-User-Id']=u.uid; headers['X-User-Plan']=(localStorage.getItem(planKey(u.uid))||'NONE').toLowerCase(); }
-        const res = await fetch(`${API_BASE}/upload`, { method:'POST', body:form, headers });
-        if(!res.ok){ toast('Upload failed'); return; }
-        const data = await res.json();
-        const newOnes = (data.files||[]).map(x=>({id:x.id, name:x.name}));
-        pendingFiles.push(...newOnes);
-        toast(`${newOnes.length} file(s) ready`);
-      }catch(err){ console.error(err); toast('Upload error'); }
-      finally{ fileInput.value = ''; }
-    });
-
-    /***********************
-     * Ask (typewriter)
-     ***********************/
-    async function ask(customText=null, editedId=null){
-      const btn    = document.getElementById('sendBtn');
-      const qInput = document.getElementById('q');
-      const q      = customText || qInput.value.trim();
-      if(!q) return;
-
-      const user = auth.currentUser;
-      if(!user){ toast('Login required.'); openLoginModal('Login required'); return; }
-
-      qInput.value = '';
-      btn.disabled = true;
-
-      // Attachments bubble
-      if (selectedLocalNames.length > 0){
-        const namesHtml = selectedLocalNames.slice(0,10).map(n => `<li>${escapeHTML(n)}</li>`).join('');
-        appendMessage('bot', `<strong>Attachments:</strong><ul>${namesHtml}</ul>`);
-      }
-
-      const userMsgId = editedId || `user-${Date.now()}`;
-      if(!customText || !editedId) appendMessage('user', q, userMsgId, {editable:true});
-
-      const botId = `stream-${Date.now()}`;
-      const streamingBubble = appendMessage('bot','', botId, {streaming:true});
-      streamingBubble.classList.add('empty');
-
-      try{
-        const headers = {
-          'Content-Type':'application/json',
-          'X-User-Id'  : user?.uid || '',
-          'X-User-Plan': (localStorage.getItem(planKey(user.uid))||'NONE').toLowerCase()
-        };
-        const payload = { question: q };
-        if (pendingFiles.length > 0){ payload.files = pendingFiles.slice(0,10); }
-
-        const ctl = new AbortController();
-        const tid = setTimeout(()=>ctl.abort(), 60000);
-
-        const res = await fetch(`${API_BASE}/ask`, { method:'POST', headers, body: JSON.stringify(payload), signal: ctl.signal });
-        clearTimeout(tid);
-
-        const box = document.getElementById('messages');
-        let full  = await res.text().catch(()=>'(no response)');
-        if(!res.ok){ full = `Server error (${res.status}). ${full || ''}`.trim(); }
-
-        // Typewriter: text first, then render markdown at the end
-        await typeInMarkdown(streamingBubble, full, { chunkSize: 6, delayMs: 12 });
-
-        // Persist chat
-        if(!currentChatTitle){
-          currentChatTitle = q.length>35 ? q.slice(0,35)+'…' : q;
-          await saveCurrentChat(currentChatTitle);
-        }else{
-          const idx = savedChats.findIndex(c=>c.title===currentChatTitle);
-          if(idx!==-1){
-            savedChats[idx].html = document.getElementById('messages').innerHTML;
-            await persistChatToCloud(savedChats[idx]);
-          }
-        }
-      } catch (err){
-        console.error(err);
-        streamingBubble.classList.remove('empty','streaming');
-        streamingBubble.textContent = 'Error responding. Check server.';
-      } finally {
-        pendingFiles = [];
-        selectedLocalNames = [];
-        refreshAttachBar();
-        btn.disabled = false;
-        updateTopBar();
-      }
-    }
-
-    async function typeInMarkdown(bubble, fullText, { chunkSize=6, delayMs=12 } = {}){
-      const box = document.getElementById('messages');
-      bubble.classList.remove('empty','streaming');
-      bubble.style.display = 'inline-block';
-      const tn = document.createTextNode('');
-      bubble.innerHTML = '';
-      bubble.appendChild(tn);
-
-      let i = 0;
-      while (i < fullText.length){
-        i += chunkSize;
-        tn.textContent = fullText.slice(0, i);
-        box.scrollTop = box.scrollHeight;
-        await new Promise(r => setTimeout(r, delayMs));
-      }
-      bubble.innerHTML = renderMarkdown(fullText);
-      box.scrollTop = box.scrollHeight;
-    }
-
-    /**********************
-     * Scroll-down helper
-     **********************/
-    const scrollBtn = document.getElementById('scrollDownBtn');
-    const msgBox = document.getElementById('messages');
-    msgBox.addEventListener('scroll', ()=>{
-      const need = msgBox.scrollTop + msgBox.clientHeight < msgBox.scrollHeight - 100;
-      scrollBtn.style.display = need ? 'block' : 'none';
-    });
-    scrollBtn.addEventListener('click', ()=>{ msgBox.scrollTop = msgBox.scrollHeight; });
-
-    /************************************
-     * Console helpers
-     ************************************/
-    window.setPlan = function(uid, plan){
-      if(!uid){ console.log('Pass uid'); return; }
-      localStorage.setItem(planKey(uid), plan);
-      if(plan==='NONE'){ localStorage.setItem(creditsKey(uid),'3'); }
-      else{ localStorage.setItem(creditsKey(uid),'9999'); }
-      updateTopBar();
-      console.log('Plan set:', plan, 'for', uid);
-    };
-    window.showMyState = function(){
-      const u = auth.currentUser; if(!u) return console.log('Login first.');
-      console.log({
-        uid:u.uid,
-        plan: localStorage.getItem(planKey(u.uid)),
-        credits: localStorage.getItem(creditsKey(u.uid)),
-        resetAt: localStorage.getItem(resetKey(u.uid))
-      });
-    };
-
-    // Initial render
-    updateTopBar();
-  </script>
+</script>
 </body>
 </html>
